@@ -1,0 +1,69 @@
+<?php
+// scanner/config/app.php
+/**
+ * Scanner Configuration
+ *
+ * @package Scanner
+ * @author KRS3
+ * @version 2.0
+ */
+
+declare(strict_types=1);
+
+return [
+    'app' => [
+        'name' => 'Project Scanner',
+        'version' => '2.0',
+        'environment' => 'development'
+    ],
+
+    'paths' => [
+        'projects_root' => dirname(__DIR__, 2), // htdocs/
+        'scanner_root' => __DIR__ . '/../',
+        'templates' => __DIR__ . '/../templates/',
+        'public' => __DIR__ . '/../public/'
+    ],
+  // ✅ NOVÉ NASTAVENÍ
+    'system' => [
+        'is_windows' => (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'),
+        'php_binary' => (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN')
+            ? 'C:\\xampp\\php\\php.exe'  // Windows cesta
+            : 'php',                      // Linux/Mac
+        'check_syntax' => true,           // Můžeš vypnout
+        'max_execution_time' => 30
+    ],
+	
+    'scanner' => [
+        'scan_all_files' => true,
+        'max_file_size_mb' => 10,
+        'show_file_sizes' => true,
+        'analyze_php' => true,
+        'check_htaccess' => true,
+        'never_assume' => true
+    ],
+
+    'important_files' => [
+        'app/Core/Config.php',
+        'app/Core/Router.php',
+        'public/index.php',
+        'app/Services/DatabaseService.php',
+        'app/Auth/LoginService.php'
+    ],
+
+    'file_patterns' => ['*.php', '.htaccess', '*.md', '*.sql'],
+
+    'ignore_patterns' => [
+        'vendor/',
+        'node_modules/',
+        '.git/',
+        'logs/',
+        'tmp/',
+        //'scanner/' // ignorovat sebe sama
+    ],
+
+    'output' => [
+        'format' => 'text_tree',
+        'include_important_files_check' => true
+    ]
+];
+?>

@@ -1,0 +1,28 @@
+<?php
+// /scanner/autoloader.php
+
+spl_autoload_register(function ($className) {
+    echo "🔧 Autoloader volán pro: $className<br>";
+
+    $prefix = 'Scanner\\';
+    $baseDir = __DIR__ . '/src/';
+
+    $len = strlen($prefix);
+    if (strncmp($prefix, $className, $len) !== 0) {
+        echo "🔧 Přeskočeno (nesedí prefix)<br>";
+        return;
+    }
+
+    $relativeClass = substr($className, $len);
+    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+
+    echo "🔧 Hledám soubor: $file<br>";
+    echo "🔧 Soubor existuje: " . (file_exists($file) ? 'ANO' : 'NE') . "<br>";
+
+    if (file_exists($file)) {
+        require $file;
+        echo "🔧 ✅ Soubor načten: $file<br>";
+    } else {
+        echo "🔧 ❌ Soubor nenalezen: $file<br>";
+    }
+});
