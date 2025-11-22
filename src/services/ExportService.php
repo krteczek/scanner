@@ -24,6 +24,8 @@ class ExportService
      * @param array $aiRules Pravidla AI (volitelné)
      * @return string Naformátovaný textový export
      */
+// scanner/src/Services/ExportService.php
+
 public function generateTextExport(string $projectName, array $structure, array $importantFiles, string $projectPath = null, array $aiRules = null): string
 {
     $export = "=== PROJECT EXPORT: $projectName ===\n";
@@ -51,6 +53,7 @@ public function generateTextExport(string $projectName, array $structure, array 
         $export .= "  • Celkem řádků: {$qualityAnalysis['celkem_radku']}\n";
         $export .= "  • Soubory bez PHP Doc: " . count($qualityAnalysis['soubory_bez_phpdoc']) . "\n";
         $export .= "  • Soubory bez loggeru: " . count($qualityAnalysis['soubory_bez_loggeru']) . "\n";
+        $export .= "  • Soubory bez namespaces: " . count($qualityAnalysis['soubory_bez_namespaces']) . "\n"; // ← PŘIDÁNO
         $export .= "  • Soubory s chybami: " . count($qualityAnalysis['soubory_s_chybami']) . "\n";
 
         // 📋 DETAILNÍ VÝPIS CHYB PRO KAŽDÝ SOUBOR
@@ -79,6 +82,14 @@ public function generateTextExport(string $projectName, array $structure, array 
                 $export .= "     ❌ " . basename($file) . "\n";
             }
         }
+
+        // 📋 SOUBORY BEZ NAMESPACES - PŘIDÁNO
+        if (!empty($qualityAnalysis['soubory_bez_namespaces'])) {
+            $export .= "\n  📋 Soubory bez Namespaces:\n";
+            foreach (array_slice($qualityAnalysis['soubory_bez_namespaces'], 0, 10) as $file) {
+                $export .= "     ❌ " . basename($file) . "\n";
+            }
+        }
     } else {
         $export .= "\n🔍 CODE QUALITY ANALYSIS: ❌ Nedostupné (chybějící parametry)\n";
     }
@@ -86,8 +97,6 @@ public function generateTextExport(string $projectName, array $structure, array 
     $export .= "\n=== END EXPORT ===\n";
     return $export;
 }
-
-
     /**
      * Vygeneruje AI kontext pro práci s projektem
      *

@@ -1,5 +1,4 @@
 <?php
-// scanner/src/Services/CodeAnalyzer.php
 
 /**
  * Analyzátor kódu pro kontrolu kvality
@@ -27,7 +26,7 @@ class CodeAnalyzer
         $this->config = $config;
     }
 
-    /**
+/**
      * Analyzuje PHP soubory a kontroluje kvalitu kódu
      *
      * @param string $projectPath Cesta k projektu
@@ -40,6 +39,7 @@ class CodeAnalyzer
             'soubory_s_chybami' => [],
             'soubory_bez_phpdoc' => [],
             'soubory_bez_loggeru' => [],
+            'soubory_bez_namespaces' => [], // ← PŘIDÁNO
             'celkem_souboru' => 0,
             'celkem_radku' => 0
         ];
@@ -59,6 +59,11 @@ class CodeAnalyzer
                 $analysis['soubory_bez_loggeru'][] = $phpFile;
             }
 
+            // ✅ KONTROLA NAMESPACES - PŘIDÁNO
+            if (!$fileAnalysis['ma_namespace'] && $this->shouldHaveNamespace($phpFile)) {
+                $analysis['soubory_bez_namespaces'][] = $phpFile;
+            }
+
             if (!empty($fileAnalysis['chyby'])) {
                 $analysis['soubory_s_chybami'][$phpFile] = $fileAnalysis['chyby'];
             }
@@ -66,7 +71,6 @@ class CodeAnalyzer
 
         return $analysis;
     }
-
     /**
      * Najde všechny PHP soubory v projektu
      *
@@ -91,7 +95,7 @@ private function findPhpFiles(string $path): array
     return $phpFiles;
 }
 
-    /**
+   /**
      * Analyzuje jednotlivý PHP soubor
      *
      * @param string $filePath Cesta k PHP souboru
@@ -105,6 +109,7 @@ private function findPhpFiles(string $path): array
             'ma_phpdoc' => false,
             'ma_logger' => false,
             'ma_strict_types' => false,
+            'ma_namespace' => false, // ← PŘIDÁNO
             'radku' => count(file($filePath)),
             'chyby' => []
         ];
@@ -119,6 +124,11 @@ private function findPhpFiles(string $path): array
             $analysis['ma_strict_types'] = true;
         }
 
+        // ✅ KONTROLA NAMESPACES - PŘIDÁNO
+        if ($this->checkNamespaces($content)) {
+            $analysis['ma_namespace'] = true;
+        }
+
         // Kontrola loggeru
         if (strpos($content, "Logger::") !== false ||
             strpos($content, "use.*Logger") !== false ||
@@ -127,26 +137,76 @@ private function findPhpFiles(string $path): array
         }
 
         // Kontrola základní syntaxe
+        if ($this->config['system']['check_syntax'] ?? true) {
+            $output = [];
+            $returnCode = 0;
 
+            // Použij plnou cestu k PHP na Windows
+            $phpBinary = $this->config['system']['php_binary'] ?? 'C:\\xampp\\php\\php.exe';
+            $command = '"' . $phpBinary . '" -l ' . escapeshellarg($filePath) . ' 2>&1';
 
-		if ($this->config['system']['check_syntax'] ?? true) {
-	        $output = [];
-	        $returnCode = 0;
+            exec($command, $output, $returnCode);
 
-	        // Použij plnou cestu k PHP na Windows
-	        $phpBinary = $this->config['system']['php_binary'] ?? 'C:\\xampp\\php\\php.exe';
-	        $command = '"' . $phpBinary . '" -l ' . escapeshellarg($filePath) . ' 2>&1';
-
-	        exec($command, $output, $returnCode);
-
-	        if ($returnCode !== 0) {
-	            $analysis['chyby'][] = implode(" ", $output);
-	        }
-	    }
+            if ($returnCode !== 0) {
+                $analysis['chyby'][] = implode(" ", $output);
+            }
+        }
 
         return $analysis;
     }
 
+ /**
+     * Zkontroluje zda soubor má správně definovaný namespace
+     *
+     * @param string $content Obsah PHP souboru
+     * @return bool True pokud má správný namespace
+     */
+    private function checkNamespaces(string $content): bool
+    {
+        return preg_match('/^namespace\s+[a-zA-Z0-9_\\\\]+;/m', $content) === 1;
+    }
+
+    /**
+     * Určí zda by soubor měl mít namespace
+     *
+     * @param string $filePath Cesta k souboru
+     * @return bool True pokud by měl mít namespace
+     */
+    private function shouldHaveNamespace(string $filePath): bool
+    {
+        // Soubory které by měly mít namespaces
+        $shouldHavePatterns = [
+            '/src\//',
+            '/app\//',
+            '/Controller\.php$/',
+            '/Service\.php$/',
+            '/Model\.php$/'
+        ];
+
+        // Soubory které mohou být bez namespaces (entry pointy, konfigurace)
+        $canBeWithoutPatterns = [
+            '/index\.php$/',
+            '/autoloader\.php$/',
+            '/config\//',
+            '/public\//'
+        ];
+
+        foreach ($canBeWithoutPatterns as $pattern) {
+            if (preg_match($pattern, $filePath)) {
+                return false;
+            }
+        }
+
+        foreach ($shouldHavePatterns as $pattern) {
+            if (preg_match($pattern, $filePath)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+	
     /**
      * Určí zda by soubor měl mít logger
      *
