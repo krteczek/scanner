@@ -349,7 +349,10 @@ class CodeAnalyzer
         ];
     }
 
-    // === ✅ PŮVODNÍ ČÁST - BEZ ZMĚN ===
+ <?php
+// scanner/src/Services/CodeAnalyzer.php
+
+// ... (všechno nahoře zůstává stejné)
 
     /**
      * Inteligentně detekuje PHP binárku pro aktuální systém
@@ -381,11 +384,6 @@ class CodeAnalyzer
             $linuxPath = $config['linux_php_path'] ?? '/opt/lampp/bin/php';
             if ($this->isValidPhpBinary($linuxPath)) {
                 return $linuxPath;
-            }
-            
-            $macPath = $config['mac_php_path'] ?? '/usr/bin/php';
-            if ($this->isValidPhpBinary($macPath)) {
-                return $macPath;
             }
         }
         
@@ -529,4 +527,5 @@ class CodeAnalyzer
         return false;
     }
 }
+?>}
 ?>

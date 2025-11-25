@@ -23,18 +23,15 @@ return [
         'templates' => __DIR__ . '/../templates/',
         'public' => __DIR__ . '/../public/'
     ],
+	'system' => [
+	    'is_windows' => (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'),
+	    'php_binary' => (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN')
+	        ? 'C:\\xampp\\php\\php.exe'  // Windows cesta
+	        : '/opt/lampp/bin/php',      // Linux/Mac
+	    'check_syntax' => true,
+	    'max_execution_time' => 30
+	],
 
-    'system' => [
-        // Fallback cesty pro PHP (použije se pouze pokud auto-detekce selže)
-        'windows_php_path' => 'C:\\xampp\\php\\php.exe',
-        'linux_php_path' => '/opt/lampp/bin/php',
-        'mac_php_path' => '/usr/bin/php',
-        
-        // Nastavení scanneru
-        'check_syntax' => true,
-        'max_execution_time' => 30
-    ],
-    
     'scanner' => [
         'scan_all_files' => true,
         'max_file_size_mb' => 10,
@@ -60,6 +57,7 @@ return [
         '.git/',
         'logs/',
         'tmp/',
+        //'scanner/' // ignorovat sebe sama
     ],
 
     'output' => [

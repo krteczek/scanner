@@ -1,12 +1,11 @@
 /**
- * Scanner Styles - VYČIŠTĚNÁ VERZE
+ * Scanner Styles
  *
  * @package Scanner
  * @author KRS3
  * @version 2.0
  */
 
-/* Základní styly */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
@@ -31,7 +30,6 @@ h1 {
     text-align: center;
 }
 
-/* Projektový seznam */
 .project-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -57,7 +55,6 @@ h1 {
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-/* Výsledky scanu */
 .scan-results {
     margin-top: 20px;
     padding: 20px;
@@ -90,7 +87,6 @@ h1 {
     color: #856404;
 }
 
-/* Export sekce */
 .export-section {
     margin: 15px 0;
     padding: 10px;
@@ -111,7 +107,6 @@ h1 {
     resize: vertical;
 }
 
-/* Tlačítka */
 button {
     background: #95a5a6;
     color: white;
@@ -143,31 +138,6 @@ button:hover {
     background: #2980b9;
     text-decoration: none;
     color: white;
-}
-
-/* Soubory a adresáře - ZJEDNODUŠENÉ S TITLE ATRIBUTEM */
-.file-item {
-    cursor: help;
-    padding: 2px 0;
-    font-family: 'Courier New', monospace;
-    white-space: pre;
-    transition: background-color 0.2s;
-    border-bottom: 1px dotted transparent;
-}
-
-.file-item:hover {
-    background-color: rgba(52, 152, 219, 0.1);
-    border-radius: 3px;
-    border-bottom: 1px dotted #3498db;
-}
-
-.file-item.directory {
-    color: #e67e22;
-}
-
-.file-item.file[data-metadata*='"has_php":true'] {
-    color: #3498db;
-    font-weight: bold;
 }
 
 /* Rules Manager Styles */
@@ -222,6 +192,68 @@ button:hover {
     border: 1px solid #c3e6cb;
 }
 
+/* Hover okna pro soubory - OPRAVENÉ */
+.file-item {
+    position: relative;
+    cursor: help;
+    padding: 2px 0;
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    transition: background-color 0.2s;
+}
+
+.file-item:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-radius: 3px;
+}
+
+.file-tooltip {
+    display: none;
+    position: fixed; /* Důležité: fixed místo absolute */
+    background: #2c3e50;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    z-index: 1000;
+    width: 280px;
+    font-size: 0.8em;
+    line-height: 1.4;
+    border: 1px solid #34495e;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    /* Žádné left/right/top - bude řízeno JavaScriptem */
+}
+
+.file-item:hover .file-tooltip {
+    display: block;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Zvýraznění PHP souborů */
+.file-item.file[data-metadata*='"has_php":true'] {
+    color: #3498db;
+    font-weight: bold;
+}
+
+.file-item.directory {
+    color: #e67e22;
+}
+
+/* Šipka pro tooltip */
+.file-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: -10px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent #2c3e50 transparent transparent;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .container {
@@ -237,4 +269,52 @@ button:hover {
         font-size: 12px;
         padding: 10px;
     }
+    
+    .file-tooltip {
+        position: fixed;
+        left: 10px !important;
+        right: 10px !important;
+        bottom: 10px;
+        top: auto !important;
+        width: auto !important;
+        margin: 0 !important;
+    }
+}
+.file-tooltip {
+    display: none;
+    position: fixed;
+    background: #2c3e50;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    z-index: 1000;
+    width: 280px;
+    font-size: 0.8em;
+    line-height: 1.4;
+    border: 3px solid red !important; /* DEBUG */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.file-item {
+    cursor: help;
+    padding: 2px 0;
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    transition: background-color 0.2s;
+    border-bottom: 1px dotted transparent;
+}
+
+.file-item:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-radius: 3px;
+    border-bottom: 1px dotted #3498db;
+}
+
+.file-item.directory {
+    color: #e67e22;
+}
+
+.file-item.file[data-metadata*='"has_php":true'] {
+    color: #3498db;
+    font-weight: bold;
 }

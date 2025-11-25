@@ -1,19 +1,16 @@
 <?php
 // scanner/src/Services/ProjectScanner.php
-
 /**
- * Service pro skenování projektů s metadaty
+ * Service pro skenování projektů
  *
  * @package Scanner\Services
  * @author KRS3
- * @version 2.1
+ * @version 2.0
  */
 
 declare(strict_types=1);
 
 namespace Scanner\Services;
-
-use RuntimeException;
 
 class ProjectScanner
 {
@@ -38,6 +35,11 @@ class ProjectScanner
     public function getProjects(): array
     {
         $rootPath = $this->config['paths']['projects_root'];
+
+		 // DEBUG: kam se díváme?
+    //echo "🔍 Skenuji adresář: " . $rootPath . "<br>";
+    //echo "🔍 Adresář existuje: " . (is_dir($rootPath) ? 'ANO' : 'NE') . "<br>";
+
         $projects = [];
         $items = @scandir($rootPath);
 
@@ -49,6 +51,9 @@ class ProjectScanner
             if ($item === '.' || $item === '..') continue;
             $fullPath = $rootPath . '/' . $item;
 
+            // Ignorovat scanner adresář
+            //if ($item === 'scanner') continue;
+
             if (is_dir($fullPath)) {
                 $projects[] = $item;
             }
@@ -57,14 +62,14 @@ class ProjectScanner
     }
 
     /**
-     * Rekurzivně proskenuje projektový adresář a vrátí strukturu s metadaty
+     * Rekurzivně proskenuje projektový adresář a vrátí strukturu
      *
      * @param string $path Cesta k adresáři pro skenování
      * @param string $prefix Prefix pro stromové zobrazení
-     * @return array Stromová struktura projektu s metadaty
+     * @return array Stromová struktura projektu
      * @throws RuntimeException Pokud nelze načíst adresář
      */
-    public function scanProjectWithMetadata(string $path, string $prefix = ''): array
+    public function scanProject(string $path, string $prefix = ''): array
     {
         $output = [];
         $items = @scandir($path);
@@ -77,68 +82,19 @@ class ProjectScanner
             if ($item === '.' || $item === '..') continue;
             $fullPath = $path . '/' . $item;
 
+            // Přeskočit ignorované patterny
             if ($this->shouldIgnore($fullPath)) continue;
 
-            $metadata = $this->getFileMetadata($fullPath);
-            
             if (is_dir($fullPath)) {
-                $output[] = [
-                    'type' => 'directory',
-                    'display' => $prefix . '📁 ' . $item . '/',
-                    'metadata' => $metadata
-                ];
-                $output = array_merge($output, $this->scanProjectWithMetadata($fullPath, $prefix . '│   '));
+                $output[] = $prefix . '📁 ' . $item . '/';
+                $output = array_merge($output, $this->scanProject($fullPath, $prefix . '│   '));
             } else {
-                $sizeInfo = $metadata['size_bytes'] > 0 ? ' (' . $metadata['size'] . ')' : '';
-                $output[] = [
-                    'type' => 'file', 
-                    'display' => $prefix . '📄 ' . $item . $sizeInfo,
-                    'metadata' => $metadata
-                ];
+                $fileSize = filesize($fullPath);
+                $sizeInfo = $fileSize > 0 ? ' (' . $this->formatFileSize($fileSize) . ')' : '';
+                $output[] = $prefix . '📄 ' . $item . $sizeInfo;
             }
         }
         return $output;
-    }
-
-    /**
-     * Získá metadata o souboru nebo adresáři
-     *
-     * @param string $filePath Cesta k souboru nebo adresáři
-     * @return array Metadata souboru
-     */
-    public function getFileMetadata(string $filePath): array
-    {
-        if (!file_exists($filePath)) {
-            return [];
-        }
-
-        $stats = stat($filePath);
-        $lines = 0;
-        
-        if (is_file($filePath) && pathinfo($filePath, PATHINFO_EXTENSION) === 'php') {
-            $lines = count(file($filePath));
-        }
-        
-        return [
-            'name' => basename($filePath),
-            'path' => $filePath,
-            'size' => $this->formatFileSize($stats['size']),
-            'size_bytes' => $stats['size'],
-            'lines' => $lines,
-            'modified' => date('Y-m-d H:i:s', $stats['mtime']),
-            'type' => is_dir($filePath) ? 'directory' : 'file',
-            'extension' => pathinfo($filePath, PATHINFO_EXTENSION),
-            'has_php' => (pathinfo($filePath, PATHINFO_EXTENSION) === 'php')
-        ];
-    }
-
-    /**
-     * Původní metoda pro kompatibilitu
-     */
-    public function scanProject(string $path, string $prefix = ''): array
-    {
-        $structureWithMetadata = $this->scanProjectWithMetadata($path, $prefix);
-        return array_column($structureWithMetadata, 'display');
     }
 
     /**

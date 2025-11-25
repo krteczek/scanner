@@ -245,11 +245,17 @@ private function renderFileItemWithHover(array $item): void
         $titleText = "📄 {$metadata['name']}\n• Velikost: {$metadata['size']}\n• Řádků: {$metadata['lines']}\n• Upraveno: {$metadata['modified']}\n• Typ: " . ($metadata['has_php'] ? 'PHP soubor' : $metadata['extension']) . "\n• Cesta: {$metadata['path']}";
     }
     
-    // Použít title atribut místo tooltip divu
-    echo "<div class='file-item {$metadata['type']}' title='" . htmlspecialchars($titleText) . "'>";
-    echo $display;
-    echo "</div>";
-}    /**
+    if ($metadata['type'] === 'directory') {
+        echo "<div class='file-item directory' title='" . htmlspecialchars($titleText) . "'>";
+        echo $display;
+        echo "</div>";
+    } else {
+        echo "<div class='file-item file' title='" . htmlspecialchars($titleText) . "'>";
+        echo $display;
+        echo "</div>";
+    }
+}
+    /**
      * Vrátí JavaScript kód pro aplikaci
      *
      * @return string JavaScript kód
