@@ -34,7 +34,9 @@ class ScannerEngine
         $this->config = $config;
         $this->projectScanner = new ProjectScanner($this->config);
         $this->codeAnalyzer = new CodeAnalyzer($this->config);
-        $this->exportService = new ExportService();
+        //$this->exportService = new ExportService();
+// V ScannerEngine.php - PŘEDAT PLNÝ CONFIG!
+$exportService = new ExportService($this->config);
     }
 
     /**
