@@ -1,6 +1,8 @@
 <?php
 // /src/Logger/Logger.php
 
+declare(strict_types=1);
+
 namespace App\Logger;
 
 use App\Core\Config;
