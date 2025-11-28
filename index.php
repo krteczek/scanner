@@ -1,4 +1,6 @@
 <?php
+
+
 // /scanner/index.php
 /**
  * Project Scanner - Entry Point
@@ -10,11 +12,22 @@
 
 declare(strict_types=1);
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // ✅ NAČTENÍ AUTOLOADERU
 require_once __DIR__ . '/autoloader.php';
 
 // Načtení konfigurace
 $config = require __DIR__ . '/config/app.php';
+
+use Scanner\Logger\AdvancedLogger;
+
+$logger = AdvancedLogger::getInstance([
+    'file_path' => '/logs/',
+    'echo' => true,
+    'min_level' => 'DEBUG'
+]);
 
 
 // Spuštění scanneru

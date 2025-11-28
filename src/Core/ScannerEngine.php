@@ -34,7 +34,8 @@ class ScannerEngine
         $this->config = $config;
         $this->projectScanner = new ProjectScanner($this->config);
         $this->codeAnalyzer = new CodeAnalyzer($this->config);
-        $this->exportService = new ExportService();
+        $this->exportService = new ExportService($this->config);
+
     }
 
     /**
@@ -89,143 +90,78 @@ class ScannerEngine
         echo "</div></body></html>";
     }
 
-    /**
-     * Zpracuje požadavek na skenování projektu s hover okny
-     *
-     * @param ProjectScanner $projectScanner Instance projektového scanneru
-     * @param string $projectName Název projektu
-     * @return void
-     */
-    private function handleScanRequest(ProjectScanner $projectScanner, string $projectName): void
-    {
-        $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
 
-        if (!is_dir($projectPath)) {
-            echo "❌ Projekt '$projectName' neexistuje!";
-            return;
-        }
+/**
+ * Zpracuje požadavek na skenování projektu s hover okny
+ *
+ * @param ProjectScanner $projectScanner Instance projektového scanneru
+ * @param string $projectName Název projektu
+ * @return void
+ */
+private function handleScanRequest(ProjectScanner $projectScanner, string $projectName): void
+{
+    $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
 
-        // Získáme strukturu s metadaty
-        $structure = $projectScanner->scanProjectWithMetadata($projectPath);
-        $importantFilesCheck = $projectScanner->checkImportantFiles($projectPath);
-
-        // Načteme AI pravidla
-        $aiRules = @include __DIR__ . '/../../config/rules.php';
-        if (!$aiRules) {
-            $aiRules = [];
-        }
-
-        // Generujeme export
-        $exportService = new ExportService();
-        $textExport = $exportService->generateTextExport(
-            $projectName, 
-            array_column($structure, 'display'), 
-            $importantFilesCheck, 
-            $projectPath, 
-            $aiRules
-        );
-
-        // Výstup výsledků S HOVER OKNY
-        echo "<div class='scan-results'>";
-        echo "<h3>📁 Struktura projektu: <strong>$projectName</strong></h3>";
-
-        // Tlačítko pro export
-        echo "<div class='export-section'>";
-        echo "<button onclick='showExport()' style='background:#27ae60;margin:10px 0'>📋 Zobrazit export</button>";
-        echo "</div>";
-
-        // Textarea pro export
-        echo "<div id='exportArea' style='display:none; margin:15px 0'>";
-        echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
-        echo htmlspecialchars($textExport);
-        echo "</textarea><br>";
-        echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
-        echo "</div>";
-
-        // ZOBRAZENÍ STRUKTURY S HOVER OKNY
-        echo "<div class='structure-with-hover'>";
-        foreach ($structure as $item) {
-            $this->renderFileItemWithHover($item);
-        }
-        echo "</div>";
-
-        // Kontrola důležitých souborů
-        echo "<div class='important-files'>";
-        echo "<h4>🎯 Kontrola důležitých souborů:</h4>";
-        foreach ($importantFilesCheck as $file => $exists) {
-            $status = $exists ? '✅' : '❌';
-            echo "<div>$status $file</div>";
-        }
-        echo "</div>";
-
-        echo "<br><button onclick='history.back()'>← Zpět</button>";
-        echo "</div>";
-
-        // ✅ DŮLEŽITÉ: JavaScript pro AJAX načtený obsah
-        echo "
-        <script>
-        // TOOLTIP PRO AŽAX NAČTENÝ OBSAH
-        function initTooltips() {
-            const fileItems = document.querySelectorAll('.file-item');
-            console.log('🔄 Inicializace tooltipů, nalezeno:', fileItems.length, 'položek');
-            
-            fileItems.forEach(item => {
-                item.addEventListener('mousemove', function(e) {
-                    const tooltip = this.querySelector('.file-tooltip');
-                    if (tooltip && tooltip.style.display !== 'none') {
-                        let x = e.pageX + 20;
-                        let y = e.pageY + 10;
-                        
-                        console.log('🖱️ Myš:', e.pageX, e.pageY, 'Tooltip:', x, y);
-                        
-                        // Získat skutečnou velikost tooltipu
-                        const tooltipRect = tooltip.getBoundingClientRect();
-                        
-                        // Kontrola pravého okraje
-                        if (x + tooltipRect.width > window.innerWidth) {
-                            console.log('⬅️ Přesun vlevo');
-                            x = e.pageX - tooltipRect.width - 20;
-                        }
-                        
-                        // Kontrola dolního okraje  
-                        if (y + tooltipRect.height > window.innerHeight) {
-                            console.log('⬆️ Přesun nahoru');
-                            y = e.pageY - tooltipRect.height - 10;
-                        }
-                        
-                        tooltip.style.left = x + 'px';
-                        tooltip.style.top = y + 'px';
-                    }
-                });
-                
-                item.addEventListener('mouseenter', function(e) {
-                    const tooltip = this.querySelector('.file-tooltip');
-                    if (tooltip) {
-                        console.log('🔍 Zobrazení tooltipu');
-                        tooltip.style.display = 'block';
-                        // Nechat prohlížeč přepočítat layout
-                        setTimeout(() => {
-                            this.dispatchEvent(new MouseEvent('mousemove', e));
-                        }, 10);
-                    }
-                });
-                
-                item.addEventListener('mouseleave', function() {
-                    const tooltip = this.querySelector('.file-tooltip');
-                    if (tooltip) {
-                        console.log('👋 Skrytí tooltipu');
-                        tooltip.style.display = 'none';
-                    }
-                });
-            });
-        }
-        
-        // Spustit tooltips pro nově načtený obsah
-        setTimeout(initTooltips, 100);
-        </script>
-        ";
+    if (!is_dir($projectPath)) {
+        echo "❌ Projekt '$projectName' neexistuje!";
+        return;
     }
 
+    // Získáme strukturu s metadaty
+    $structure = $projectScanner->scanProjectWithMetadata($projectPath);
+    $importantFilesCheck = $projectScanner->checkImportantFiles($projectPath);
+
+    // Načteme AI pravidla
+    $aiRules = @include __DIR__ . '/../../config/rules.php';
+    if (!$aiRules) {
+        $aiRules = [];
+    }
+
+    // Generujeme export   
+    $textExport = $this->exportService->generateTextExport(
+        $projectName, 
+        array_column($structure, 'display'), 
+        $importantFilesCheck, 
+        $projectPath, 
+        $aiRules
+    );
+
+    // Výstup výsledků S TITLE ATRIBUTY
+    echo "<div class='scan-results'>";
+    echo "<h3>📁 Struktura projektu: <strong>$projectName</strong></h3>";
+
+    // Tlačítko pro export
+    echo "<div class='export-section'>";
+    echo "<button onclick='showExport()' style='background:#27ae60;margin:10px 0'>📋 Zobrazit export</button>";
+    echo "</div>";
+
+    // Textarea pro export
+    echo "<div id='exportArea' style='display:none; margin:15px 0'>";
+    echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
+    echo htmlspecialchars($textExport);
+    echo "</textarea><br>";
+    echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
+    echo "</div>";
+
+    // ZOBRAZENÍ STRUKTURY S TITLE ATRIBUTY
+    echo "<div class='structure-with-hover'>";
+    foreach ($structure as $item) {
+        $this->renderFileItemWithHover($item);
+    }
+    echo "</div>";
+
+    // Kontrola důležitých souborů
+    echo "<div class='important-files'>";
+    echo "<h4>🎯 Kontrola důležitých souborů:</h4>";
+    foreach ($importantFilesCheck as $file => $exists) {
+        $status = $exists ? '✅' : '❌';
+        echo "<div>$status $file</div>";
+    }
+    echo "</div>";
+
+    echo "<br><button onclick='history.back()'>← Zpět</button>";
+    echo "</div>";
+}
     /**
      * Vykreslí položku souboru nebo adresáře s hover okenem
      *

@@ -65,6 +65,17 @@ return [
     'output' => [
         'format' => 'text_tree',
         'include_important_files_check' => true
-    ]
+    ],
+    'logs' => [
+        'level' => 'DEBUG',        // DEBUG, INFO, WARNING, ERROR, CRITICAL, EXCEPTION, NONE
+        'echo' => true,           // Vypnout výpis na obrazovku v produkci
+        'file' => true,            // Zapnout zápis do souboru
+        'rotation' => 'daily',     // daily, hourly, size, none
+        'max_size' => 10240,    // 10MB (pro size rotaci)
+        'max_files' => 30,         // Počet souborů k uchování
+        'dir' => __DIR__ . '/../logs/',
+        'file' => 'app.log'
+    ],
+
 ];
 ?>

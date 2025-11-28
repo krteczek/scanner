@@ -1,3 +1,16 @@
+<?php
+declare(strict_types=1);
+
+namespace Scanner\Templates;
+
+/**
+ * Template pro správu AI pravidel
+ * 
+ * @package Scanner\Templates
+ * @author KRS3
+ * @version 2.0
+ */
+?>
 <!DOCTYPE html>
 <html>
 <head>

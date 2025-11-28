@@ -1,6 +1,16 @@
 <?php
 // scanner/src/Services/ExportService.php
 
+declare(strict_types=1);
+
+namespace Scanner\Services;
+
+use Scanner\Logger\Logger;
+use Scanner\Logger\AdvancedLogger;
+
+
+use Scanner\Services\CodeAnalyzer;
+
 /**
  * Service pro generování exportů s detailním reportingem problémů
  *
@@ -8,13 +18,21 @@
  * @author KRS3
  * @version 2.1
  */
-
-declare(strict_types=1);
-
-namespace Scanner\Services;
-
 class ExportService
 {
+    private Logger $logger;
+
+    private array $config;
+
+	public function __construct(array $config = [])
+    {
+        $this->config = $config;
+        //print_r($config);exit;
+        $this->logger = Logger::getInstance();
+        //$this->logger = new AdvancedLogger();
+        $this->logger->info('ExportService initialized');
+    }
+
     /**
      * Vygeneruje textový export s detailními problémy
      *
@@ -27,6 +45,8 @@ class ExportService
      */
     public function generateTextExport(string $projectName, array $structure, array $importantFiles, string $projectPath = null, array $aiRules = null): string
     {
+        $this->logger->info('Generating text export', ['project' => $projectName]);
+        
         $export = "=== PROJECT EXPORT: $projectName ===\n";
         $export .= "Generated: " . date('Y-m-d H:i:s') . "\n";
         $export .= "========================================\n\n";
@@ -42,20 +62,26 @@ class ExportService
             $export .= "$status - $file\n";
         }
 
-        // 🔍 DETAILNÍ ANALÝZA PROBLÉMŮ
+        // 🔍 DETAILNÍ ANALÝZA PROBLÉMŮ - OPRAVENÉ!
         if ($projectPath && $aiRules && is_dir($projectPath)) {
-            $codeAnalyzer = new CodeAnalyzer([]);
-            $qualityAnalysis = $codeAnalyzer->analyzeCodeQuality($projectPath, $aiRules);
-
-            $export .= $this->generateDetailedProblemsSection($qualityAnalysis);
+            try {
+                $this->logger->debug('Running code quality analysis');
+                $codeAnalyzer = new CodeAnalyzer($this->config);  // ← PŘEDAT CONFIG!
+                $qualityAnalysis = $codeAnalyzer->analyzeCodeQuality($projectPath, $aiRules);
+                $export .= $this->generateDetailedProblemsSection($qualityAnalysis);
+            } catch (\Exception $e) {
+                $this->logger->error('Code analysis failed', ['error' => $e->getMessage()]);
+                $export .= "\n🔍 CODE QUALITY ANALYSIS: ❌ Chyba - {$e->getMessage()}\n";
+            }
         } else {
+            $this->logger->warning('Code quality analysis skipped - missing parameters');
             $export .= "\n🔍 CODE QUALITY ANALYSIS: ❌ Nedostupné (chybějící parametry)\n";
         }
 
         $export .= "\n=== END EXPORT ===\n";
+        $this->logger->info('Text export generated successfully');
         return $export;
     }
-
     /**
      * Vygeneruje sekci s detailními problémy
      *
@@ -64,6 +90,8 @@ class ExportService
      */
     private function generateDetailedProblemsSection(array $qualityAnalysis): string
     {
+        $this->logger->debug('Generating detailed problems section');
+        
         $section = "\n🔍 DETAILED CODE QUALITY ANALYSIS:\n";
         $section .= "  • Celkem souborů: {$qualityAnalysis['celkem_souboru']}\n";
         $section .= "  • Celkem řádků: {$qualityAnalysis['celkem_radku']}\n";
@@ -71,7 +99,7 @@ class ExportService
         $section .= "  • Soubory bez loggeru: " . count($qualityAnalysis['soubory_bez_loggeru']) . "\n";
         $section .= "  • Soubory bez namespaces: " . count($qualityAnalysis['soubory_bez_namespaces']) . "\n";
 
-        // 🔍 NOVÉ: STATISTIKA PROBLÉMŮ PODLE ZÁVAŽNOSTI
+        // 🔍 STATISTIKA PROBLÉMŮ PODLE ZÁVAŽNOSTI
         $problemsBySeverity = $qualityAnalysis['problemy_podle_zavaznosti'] ?? [];
         $section .= "\n  🚨 PROBLÉMY PODLE ZÁVAŽNOSTI:\n";
         $section .= "    • Kritické: " . count($problemsBySeverity['critical'] ?? []) . "\n";
@@ -98,6 +126,8 @@ class ExportService
      */
     private function generateFileProblemsDetails(array $filesWithProblems): string
     {
+        $this->logger->debug('Generating file problems details', ['files_count' => count($filesWithProblems)]);
+        
         $section = "\n  📋 DETAILNÍ PROBLÉMY V SOUBORECH:\n";
         
         foreach ($filesWithProblems as $filePath => $problems) {
@@ -193,6 +223,8 @@ class ExportService
         array $aiRules,
         array $qualityAnalysis = []
     ): string {
+        $this->logger->info('Generating AI context', ['project' => $projectName]);
+        
         $context = "=== AI WORKING CONTEXT ===\n";
         $context .= "Project: $projectName\n";
         $context .= "Scan Date: " . date('Y-m-d H:i:s') . "\n\n";
@@ -203,7 +235,7 @@ class ExportService
             $context .= "  $status - $rule\n";
         }
 
-        // 🔍 NOVÉ: PŘIDÁNÍ INFORMACÍ O PROBLÉMECH DO AI CONTEXTU
+        // 🔍 PŘIDÁNÍ INFORMACÍ O PROBLÉMECH DO AI CONTEXTU
         if (!empty($qualityAnalysis)) {
             $context .= $this->generateAIProblemsContext($qualityAnalysis);
         }
