@@ -7,6 +7,7 @@ use Scanner\Logger\Logger;
 
 /**
  * Controller pro správu AI pravidel
+ * Zpracovává HTTP požadavky pro import, export a správu pravidel
  * 
  * @package Scanner\Core
  * @author KRS3
@@ -16,6 +17,10 @@ class RulesController
 {
     private Logger $logger;
 
+    /**
+     * Inicializuje RulesController
+     * Nastavuje logger instance a zapisuje inicializační zprávu
+     */
     public function __construct()
     {
         $this->logger = Logger::getInstance();
@@ -24,6 +29,8 @@ class RulesController
 
     /**
      * Spustí controller pro správu pravidel
+     * Zpracovává POST požadavky na import/úpravu pravidel a GET požadavky na export
+     * Načítá data pro zobrazení a renderuje view template
      *
      * @return void
      */

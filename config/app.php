@@ -60,6 +60,7 @@ return [
         '.git/',
         'logs/',
         'tmp/',
+        '~',
     ],
 
     'output' => [

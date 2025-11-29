@@ -10,22 +10,31 @@ use Scanner\Services\CodeAnalyzer;
 use Scanner\Services\ExportService;
 
 /**
- * Hlavní engine scanneru s hover okny
- *
+ * Hlavní engine scanneru - řídí celou aplikaci
+ * Zajišťuje zobrazení rozhraní, zpracování požadavků a koordinaci služeb
+ * Implementuje hover okna pro zobrazení metadat souborů
+ * 
  * @package Scanner\Core
  * @author KRS3
  * @version 2.1
  */
-
 class ScannerEngine
 {
+    /** @var array Konfigurace aplikace */
     private array $config;
+
+    /** @var ProjectScanner Instance projektového scanneru pro načítání struktur */
     private ProjectScanner $projectScanner;
+
+    /** @var CodeAnalyzer Instance analyzátoru kódu pro kontrolu kvality */
     private CodeAnalyzer $codeAnalyzer;
+
+    /** @var ExportService Instance služby pro generování exportů */
     private ExportService $exportService;
 
     /**
-     * Constructor
+     * Inicializuje scanner engine s konfigurací
+     * Vytváří instance všech potřebných služeb
      *
      * @param array $config Konfigurace aplikace
      */
@@ -35,10 +44,12 @@ class ScannerEngine
         $this->projectScanner = new ProjectScanner($this->config);
         $this->codeAnalyzer = new CodeAnalyzer($this->config);
         $this->exportService = new ExportService($this->config);
-   }
+    }
 
     /**
      * Spustí hlavní aplikaci scanneru
+     * Rozhoduje mezi zobrazením hlavního rozhraní a zpracováním skenování
+     * Podle URL parametru 'scan' volá příslušnou akci
      *
      * @return void
      */
@@ -52,7 +63,8 @@ class ScannerEngine
     }
 
     /**
-     * Zobrazí hlavní rozhraní s výpisem projektů
+     * Zobrazí hlavní rozhraní s výpisem dostupných projektů
+     * Zobrazuje tlačítko pro správu pravidel a seznam projektů
      *
      * @param ProjectScanner $projectScanner Instance projektového scanneru
      * @return void
@@ -89,103 +101,110 @@ class ScannerEngine
         echo "</div></body></html>";
     }
 
+    /**
+     * Zpracuje požadavek na skenování projektu
+     * Načte strukturu projektu, zkontroluje důležité soubory a vygeneruje export
+     * Zobrazí výsledky s hover okny pro metadata souborů
+     *
+     * @param ProjectScanner $projectScanner Instance projektového scanneru
+     * @param string $projectName Název projektu ke skenování
+     * @return void
+     */
+    private function handleScanRequest(ProjectScanner $projectScanner, string $projectName): void
+    {
+        $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
 
-/**
- * Zpracuje požadavek na skenování projektu s hover okny
- *
- * @param ProjectScanner $projectScanner Instance projektového scanneru
- * @param string $projectName Název projektu
- * @return void
- */
-private function handleScanRequest(ProjectScanner $projectScanner, string $projectName): void
-{
-    $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
+        if (!is_dir($projectPath)) {
+            echo "❌ Projekt '$projectName' neexistuje!";
+            return;
+        }
 
-    if (!is_dir($projectPath)) {
-        echo "❌ Projekt '$projectName' neexistuje!";
-        return;
+        // Získáme strukturu s metadaty
+        $structure = $projectScanner->scanProjectWithMetadata($projectPath);
+        $importantFilesCheck = $projectScanner->checkImportantFiles($projectPath);
+
+        // Načteme AI pravidla
+        $aiRules = @include __DIR__ . '/../../config/rules.php';
+        if (!$aiRules) {
+            $aiRules = [];
+        }
+
+        // Generujeme export   
+        $textExport = $this->exportService->generateTextExport(
+            $projectName, 
+            array_column($structure, 'display'), 
+            $importantFilesCheck, 
+            $projectPath, 
+            $aiRules
+        );
+
+        // Výstup výsledků S TITLE ATRIBUTY
+        echo "<div class='scan-results'>";
+        echo "<h3>📁 Struktura projektu: <strong>$projectName</strong></h3>";
+
+        // Tlačítko pro export
+        echo "<div class='export-section'>";
+        echo "<button onclick='showExport()' style='background:#27ae60;margin:10px 0'>📋 Zobrazit export</button>";
+        echo "</div>";
+
+        // Textarea pro export
+        echo "<div id='exportArea' style='display:none; margin:15px 0'>";
+        echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
+        echo htmlspecialchars($textExport);
+        echo "</textarea><br>";
+        echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
+        echo "</div>";
+
+        // ZOBRAZENÍ STRUKTURY S TITLE ATRIBUTY
+        echo "<div class='structure-with-hover'>";
+        foreach ($structure as $item) {
+            $this->renderFileItemWithHover($item);
+        }
+        echo "</div>";
+
+        // Kontrola důležitých souborů
+        echo "<div class='important-files'>";
+        echo "<h4>🎯 Kontrola důležitých souborů:</h4>";
+        foreach ($importantFilesCheck as $file => $exists) {
+            $status = $exists ? '✅' : '❌';
+            echo "<div>$status $file</div>";
+        }
+        echo "</div>";
+
+        echo "<br><button onclick='history.back()'>← Zpět</button>";
+        echo "</div>";
     }
 
-    // Získáme strukturu s metadaty
-    $structure = $projectScanner->scanProjectWithMetadata($projectPath);
-    $importantFilesCheck = $projectScanner->checkImportantFiles($projectPath);
-
-    // Načteme AI pravidla
-    $aiRules = @include __DIR__ . '/../../config/rules.php';
-    if (!$aiRules) {
-        $aiRules = [];
-    }
-
-    // Generujeme export   
-    $textExport = $this->exportService->generateTextExport(
-        $projectName, 
-        array_column($structure, 'display'), 
-        $importantFilesCheck, 
-        $projectPath, 
-        $aiRules
-    );
-
-    // Výstup výsledků S TITLE ATRIBUTY
-    echo "<div class='scan-results'>";
-    echo "<h3>📁 Struktura projektu: <strong>$projectName</strong></h3>";
-
-    // Tlačítko pro export
-    echo "<div class='export-section'>";
-    echo "<button onclick='showExport()' style='background:#27ae60;margin:10px 0'>📋 Zobrazit export</button>";
-    echo "</div>";
-
-    // Textarea pro export
-    echo "<div id='exportArea' style='display:none; margin:15px 0'>";
-    echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
-    echo htmlspecialchars($textExport);
-    echo "</textarea><br>";
-    echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
-    echo "</div>";
-
-    // ZOBRAZENÍ STRUKTURY S TITLE ATRIBUTY
-    echo "<div class='structure-with-hover'>";
-    foreach ($structure as $item) {
-        $this->renderFileItemWithHover($item);
-    }
-    echo "</div>";
-
-    // Kontrola důležitých souborů
-    echo "<div class='important-files'>";
-    echo "<h4>🎯 Kontrola důležitých souborů:</h4>";
-    foreach ($importantFilesCheck as $file => $exists) {
-        $status = $exists ? '✅' : '❌';
-        echo "<div>$status $file</div>";
-    }
-    echo "</div>";
-
-    echo "<br><button onclick='history.back()'>← Zpět</button>";
-    echo "</div>";
-}
     /**
      * Vykreslí položku souboru nebo adresáře s hover okenem
+     * Používá HTML title atribut pro zobrazení metadat při najetí myší
+     * Formátuje metadata podle typu položky (soubor/adresář)
      *
      * @param array $item Položka struktury s metadaty
      * @return void
      */
-private function renderFileItemWithHover(array $item): void
-{
-    $display = htmlspecialchars($item['display']);
-    $metadata = $item['metadata'];
-    
-    // Vytvořit text pro title atribut
-    $titleText = "";
-    if ($metadata['type'] === 'directory') {
-        $titleText = "📁 {$metadata['name']}\n• Typ: Adresář\n• Cesta: {$metadata['path']}\n• Upraveno: {$metadata['modified']}";
-    } else {
-        $titleText = "📄 {$metadata['name']}\n• Velikost: {$metadata['size']}\n• Řádků: {$metadata['lines']}\n• Upraveno: {$metadata['modified']}\n• Typ: " . ($metadata['has_php'] ? 'PHP soubor' : $metadata['extension']) . "\n• Cesta: {$metadata['path']}";
+    private function renderFileItemWithHover(array $item): void
+    {
+        $display = htmlspecialchars($item['display']);
+        $metadata = $item['metadata'];
+        
+        // Vytvořit text pro title atribut
+        $titleText = "";
+        if ($metadata['type'] === 'directory') {
+            $titleText = "📁 {$metadata['name']}\n• Typ: Adresář\n• Cesta: {$metadata['path']}\n• Upraveno: {$metadata['modified']}";
+        } else {
+            $titleText = "📄 {$metadata['name']}\n• Velikost: {$metadata['size']}\n• Řádků: {$metadata['lines']}\n• Upraveno: {$metadata['modified']}\n• Typ: " . ($metadata['has_php'] ? 'PHP soubor' : $metadata['extension']) . "\n• Cesta: {$metadata['path']}";
+        }
+        
+        // Použít title atribut místo tooltip divu
+        echo "<div class='file-item {$metadata['type']}' title='" . htmlspecialchars($titleText) . "'>";
+        echo $display;
+        echo "</div>";
     }
-    
-    // Použít title atribut místo tooltip divu
-    echo "<div class='file-item {$metadata['type']}' title='" . htmlspecialchars($titleText) . "'>";
-    echo $display;
-    echo "</div>";
-}    /**
-     * Vrátí JavaScript kód pro aplikaci
+
+    /**
+     * Vrátí JavaScript kód pro interaktivní funkcionalitu aplikace
+     * Obsahuje funkce pro zobrazení struktury, exportu a kopírování
      *
      * @return string JavaScript kód
      */
@@ -234,6 +253,78 @@ private function renderFileItemWithHover(array $item): void
         }
         </script>
         ";
+    }
+
+    /**
+     * Zobrazí strukturu projektu - veřejná metoda pro externí volání
+     *
+     * @param string $projectName Název projektu
+     * @return void
+     */
+    public function showStructure(string $projectName): void
+    {
+        $this->handleScanRequest($this->projectScanner, $projectName);
+    }
+
+    /**
+     * Zobrazí export projektu v textové podobě
+     * Používá ExportService pro generování strukturovaného výstupu
+     *
+     * @param string $projectName Název projektu
+     * @return void
+     */
+    public function showExport(string $projectName): void
+    {
+        $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
+        $structure = $this->projectScanner->scanProjectWithMetadata($projectPath);
+        $importantFilesCheck = $this->projectScanner->checkImportantFiles($projectPath);
+        
+        $aiRules = @include __DIR__ . '/../../config/rules.php';
+        if (!$aiRules) {
+            $aiRules = [];
+        }
+
+        $textExport = $this->exportService->generateTextExport(
+            $projectName, 
+            array_column($structure, 'display'), 
+            $importantFilesCheck, 
+            $projectPath, 
+            $aiRules
+        );
+
+        echo "<div id='exportArea' style='display:block; margin:15px 0'>";
+        echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
+        echo htmlspecialchars($textExport);
+        echo "</textarea><br>";
+        echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
+        echo "</div>";
+    }
+
+    /**
+     * Zkopíruje obsah exportu do systémové schránky
+     * Používá JavaScript pro kopírování textu z textarea
+     *
+     * @return void
+     */
+    public function copyExport(): void
+    {
+        echo "<script>
+            const textarea = document.getElementById('exportText');
+            if (textarea) {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        alert('✅ Export zkopírován do schránky!');
+                    } else {
+                        alert('❌ Kopírování selhalo');
+                    }
+                } catch (err) {
+                    alert('❌ Chyba při kopírování: ' + err);
+                }
+            }
+        </script>";
     }
 }
 ?>

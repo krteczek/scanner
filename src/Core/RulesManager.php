@@ -6,7 +6,9 @@ namespace Scanner\Core;
 use Scanner\Logger\Logger;
 
 /**
- * RulesManager - manages scanning rules and validations
+ * Správce AI pravidel pro skenování kódu
+ * Zajišťuje načítání, ukládání, import a export pravidel validace
+ * Spravuje kategorie pravidel a jejich konfiguraci
  * 
  * @package Scanner\Core
  * @author KRS3  
@@ -14,11 +16,22 @@ use Scanner\Logger\Logger;
  */
 class RulesManager
 {
+    /** @var array Konfigurace pravidel z rules.php */
     private array $rulesConfig;
+
+    /** @var array Aktuálně načtená pravidla */
     private array $currentRules;
+
+    /** @var array Kategorie pravidel a jejich definice */
     private array $ruleCategories;
+
+    /** @var Logger Instance loggeru pro zaznamenávání operací */
     private Logger $logger;
 
+    /**
+     * Inicializuje správce pravidel
+     * Načte konfiguraci a nastaví logger
+     */
     public function __construct()
     {
         $this->logger = Logger::getInstance();
@@ -26,7 +39,10 @@ class RulesManager
     }
 
     /**
-     * Load rules from configuration file
+     * Načte pravidla z konfiguračního souboru rules.php
+     * Inicializuje aktuální pravidla a kategorie
+     *
+     * @return void
      */
     private function loadRules(): void
     {
@@ -41,10 +57,11 @@ class RulesManager
     }
 
     /**
-     * Process form submission and update rules
-     * 
-     * @param array $postData POST data from form
-     * @return string Success/error message
+     * Zpracuje odeslání formuláře a aktualizuje pravidla
+     * Převádí POST data na strukturovaná pravidla a ukládá je
+     *
+     * @param array $postData POST data z formuláře pravidel
+     * @return string Zpráva o úspěchu/chybě operace
      */
     public function processFormSubmission(array $postData): string
     {
@@ -77,10 +94,11 @@ class RulesManager
     }
 
     /**
-     * Import rules from JSON data
-     * 
-     * @param string $jsonData JSON rules data
-     * @return string Success/error message
+     * Importuje pravidla z JSON dat
+     * Validuje JSON strukturu a ukládá nová pravidla
+     *
+     * @param string $jsonData JSON řetězec s daty pravidel
+     * @return string Zpráva o úspěchu/chybě importu
      */
     public function importRules(string $jsonData): string
     {
@@ -100,10 +118,11 @@ class RulesManager
     }
 
     /**
-     * Save rules to configuration file
-     * 
-     * @param array $rules New rules to save
-     * @return bool True if successful
+     * Uloží pravidla do konfiguračního souboru
+     * Generuje PHP kód s exportem pole a zapisuje do souboru
+     *
+     * @param array $rules Nová pravidla k uložení
+     * @return bool True pokud bylo uložení úspěšné
      */
     private function saveRules(array $rules): bool
     {
@@ -123,9 +142,10 @@ class RulesManager
     }
 
     /**
-     * Get current rules for export
-     * 
-     * @return array Rules data for JSON export
+     * Získá aktuální pravidla pro export do JSON
+     * Vrací strukturovaná data vhodná pro serializaci
+     *
+     * @return array Data pravidel pro JSON export
      */
     public function getRulesForExport(): array
     {
@@ -136,9 +156,10 @@ class RulesManager
     }
 
     /**
-     * Get current rules and categories for view
-     * 
-     * @return array Rules data for template
+     * Získá aktuální pravidla a kategorie pro zobrazení v šabloně
+     * Data jsou připravena pro použití v rules_view.php
+     *
+     * @return array Data pravidel pro šablonu
      */
     public function getRulesForView(): array
     {

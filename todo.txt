@@ -1,0 +1,139 @@
+scanner: php aplikace na procázení projektů, hledání nedostatku v kodu atd
+=========================================================================
+ruzné poznámky k dalšímu vývoji 
+[ ] Přidat více coding rules
+[ ] Optimalizovat performance pro velké projekty  
+[ ] Přidat export reportů (PDF, JSON)
+[ ] Webové UI vylepšit
+[ ] Přidat ignore patterns (.gitignore style)
+[ ] CLI argumenty pro batch processing
+[ ] Plugin system pro custom rules
+[ ] Integration s CI/CD
+
+1. 📊 GENERUJE REPORT → ukazuje problémy
+2. 👀 TY VIDÍŠ KONKRÉTNÍ SOUBORY s chybami  
+3. 🔍 SPOLEČNĚ PROCHÁZÍME problémový kód
+4. 💬 BRAINSTORMUJEME řešení
+5. 🔧 OPRAVUJEME na základě domluvy
+6. 📝 GENERUJEME OPRAVENÝ KÓD
+
+Přidat více detection rules
+
+Vylepšit formátování reportů
+
+Přidat ignore patterns
+
+Optimalizovat performance
+
+Rozšířit supported language
+
+Přidat více detection rules
+
+Vylepšit formátování reportů
+
+Přidat ignore patterns
+
+Optimalizovat performance
+
+Rozšířit supported language
+
+Možnost 1: Deployment
+
+    Nasadit scanner na server
+
+    Připravit production environment
+
+    Nastavit logging a monitoring
+
+    Udělat backup strategii
+
+Možnost 2: Rozšíření funkcí
+
+    Přidat webové rozhraní
+
+    Připravit API endpoints
+
+    Přidat user management
+
+    Nastavit scheduled scans
+
+Možnost 3: Architectura
+
+    Rozdělení na microservices
+
+    Přidat queue pro velké scany
+
+    Database pro ukládání reportů
+
+    Caching layer
+
+🚀 Jdeme na to! Která verze "rozhodit" to je?
+
+Chceš abychom:
+
+    Připravili deployment scripty?
+
+    Navrhli database schema?
+
+    Vytvořili webové UI?
+
+    Něco jiného?
+    
+    1. CODE ANALYSIS
+
+    Kontrola coding standards
+
+    Hledání chyb, špatných praktik
+
+    Validace syntaxe, type hints, atd.
+
+2. SEARCH / GREP funkce
+
+    Procházení celého projektu
+
+    Hledání specifických patternů
+
+    Full-text search v kódu
+    
+    // Hledání specifických funkcí
+$scanner->search('function oldFunction');
+
+// Hledání TODO komentářů  
+$scanner->search('TODO:|FIXME:');
+
+// Hledání specifických tříd
+$scanner->search('class.*Controller');
+
+// Hledání SQL queries
+$scanner->search('SELECT.*FROM|INSERT INTO|UPDATE.*SET');
+
+Můžeš mít i pokročilé search patterns:
+text
+
+/search?pattern=function.*deprecated&dir=/project/path
+/search?pattern=TODO:&file=User.php
+/search?pattern=mysql_query&ext=php
+
+💡 To vysvětluje proč scanner potřebuje:
+
+    Rychlé procházení souborů - pro search
+
+    Regex support - pro pokročilé patterny
+
+    Filtrování podle přípon - jen .php, .js, atd.
+
+    Výsledky s kontextem - ukázat okolí nalezeného textu
+
+Skvělá fičura! 🔥 Search je extrémně užitečný pro:
+
+    Refactoring
+
+    Debugging
+
+    Code reviews
+
+    Migrace
+
+Už se těším až uvidíme jak search funguje!
+
+

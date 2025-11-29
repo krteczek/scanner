@@ -2,7 +2,10 @@
 // scanner/src/Services/ProjectScanner.php
 
 /**
- * Service pro skenování projektů s metadaty
+ * Service pro skenování struktury projektů s metadaty souborů
+ * Zajišťuje rekurzivní průchod adresářovou strukturou
+ * Generuje stromové zobrazení s informacemi o souborech
+ * Poskytuje kontrolu důležitých souborů a ignorování systémových cest
  *
  * @package Scanner\Services
  * @author KRS3
@@ -17,10 +20,12 @@ use RuntimeException;
 
 class ProjectScanner
 {
+    /** @var array Konfigurace aplikace s cestami a pravidly */
     private array $config;
 
     /**
-     * Constructor
+     * Inicializuje projektový scanner s konfigurací
+     * Připravuje scanner pro práci s definovanými cestami a pravidly
      *
      * @param array $config Konfigurace aplikace
      */
@@ -30,10 +35,11 @@ class ProjectScanner
     }
 
     /**
-     * Získá seznam projektů v kořenovém adresáři
+     * Získá seznam projektů v kořenovém adresáři projektů
+     * Prohledává definovaný kořenový adresář a vrací seznam podadresářů
      *
      * @return array Seznam názvů projektových adresářů
-     * @throws RuntimeException Pokud nelze načíst adresář
+     * @throws RuntimeException Pokud nelze načíst nebo přistupovat ke kořenovému adresáři
      */
     public function getProjects(): array
     {
@@ -58,9 +64,11 @@ class ProjectScanner
 
     /**
      * Rekurzivně proskenuje projektový adresář a vrátí strukturu s metadaty
+     * Prochází všechny soubory a adresáře, aplikuje ignore pravidla
+     * Vrací kompletní strukturu s metadaty pro každou položku
      *
      * @param string $path Cesta k adresáři pro skenování
-     * @param string $prefix Prefix pro stromové zobrazení
+     * @param string $prefix Prefix pro stromové zobrazení (pro rekurzi)
      * @return array Stromová struktura projektu s metadaty
      * @throws RuntimeException Pokud nelze načíst adresář
      */
@@ -77,7 +85,7 @@ class ProjectScanner
             if ($item === '.' || $item === '..') continue;
             $fullPath = $path . '/' . $item;
 
-            if ($this->shouldIgnore($fullPath)) continue;
+            if ($this->shouldIgnore($fullPath, $item)) continue;
 
             $metadata = $this->getFileMetadata($fullPath);
             
@@ -102,9 +110,11 @@ class ProjectScanner
 
     /**
      * Získá metadata o souboru nebo adresáři
+     * Shromažďuje informace o velikosti, čase modifikace, počtu řádků a typech
+     * Pro PHP soubory navíc počítá řádky kódu
      *
      * @param string $filePath Cesta k souboru nebo adresáři
-     * @return array Metadata souboru
+     * @return array Metadata souboru obsahující name, path, size, lines, modified, type, extension, has_php
      */
     public function getFileMetadata(string $filePath): array
     {
@@ -133,7 +143,12 @@ class ProjectScanner
     }
 
     /**
-     * Původní metoda pro kompatibilitu
+     * Původní metoda pro kompatibilitu - scanuje projekt a vrací strukturu
+     * Zachovává původní rozhraní vracením pouze zobrazených řetězců
+     *
+     * @param string $path Cesta k adresáři pro skenování
+     * @param string $prefix Prefix pro stromové zobrazení
+     * @return array Pole zobrazených řetězců struktury projektu
      */
     public function scanProject(string $path, string $prefix = ''): array
     {
@@ -143,9 +158,10 @@ class ProjectScanner
 
     /**
      * Zkontroluje existenci důležitých souborů v projektu
+     * Porovnává seznam důležitých souborů z konfigurace s aktuálním stavem
      *
      * @param string $projectPath Kořenová cesta projektu
-     * @return array Výsledky s informací o existenci souborů
+     * @return array Asociativní pole [název_souboru => existuje]
      */
     public function checkImportantFiles(string $projectPath): array
     {
@@ -160,28 +176,43 @@ class ProjectScanner
     }
 
     /**
-     * Zkontroluje zda má být cesta ignorována na základě patternů
+     * Zkontroluje zda má být cesta ignorována na základě patternů z konfigurace
+     * Používá se pro vynechání systémových adresářů a záložních souborů
+     * Podporuje patterny pro celé cesty i konkrétní soubory
      *
      * @param string $path Cesta k souboru/adresáři pro kontrolu
+     * @param string $itemName Název souboru/adresáře (pro kontrolu koncovek)
      * @return bool True pokud má být cesta ignorována
      */
-    private function shouldIgnore(string $path): bool
+    private function shouldIgnore(string $path, string $itemName): bool
     {
         $ignorePatterns = $this->config['ignore_patterns'] ?? [];
 
+        // Kontrola patternů z konfigurace
         foreach ($ignorePatterns as $pattern) {
+            // Pro adresáře - hledáme pattern v celé cestě
             if (strpos($path, $pattern) !== false) {
                 return true;
             }
+            
+            // Pro soubory - kontrola koncovek
+            if (is_file($path)) {
+                // Pattern je jen znak (např. '~') - kontrola konce názvu souboru
+                if (strlen($pattern) === 1 && substr($itemName, -1) === $pattern) {
+                    return true;
+                }
+            }
         }
+        
         return false;
     }
 
     /**
-     * Formátuje velikost souboru do čitelného formátu
+     * Formátuje velikost souboru do čitelného formátu s jednotkami
+     * Automaticky vybírá vhodnou jednotku (B, KB, MB) podle velikosti
      *
      * @param int $bytes Velikost souboru v bytech
-     * @return string Naformátovaná velikost souboru
+     * @return string Naformátovaná velikost souboru s jednotkou
      */
     private function formatFileSize(int $bytes): string
     {
@@ -192,6 +223,20 @@ class ProjectScanner
         } else {
             return $bytes . 'B';
         }
+    }
+
+    /**
+     * Získá relativní cestu vůči základní cestě
+     * Odstraní základní cestu z absolutní cesty pro zjednodušení zobrazení
+     *
+     * @param string $absolutePath Absolutní cesta k souboru/adresáři
+     * @param string $basePath Základní cesta pro relativní výpočet
+     * @return string Relativní cesta vzhledem k základní cestě
+     */
+    public function getRelativePath(string $absolutePath, string $basePath): string
+    {
+        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        return str_replace($basePath, '', $absolutePath);
     }
 }
 ?>

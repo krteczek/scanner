@@ -7,44 +7,58 @@ namespace Scanner\Services;
 
 use Scanner\Logger\Logger;
 use Scanner\Logger\AdvancedLogger;
-
-
 use Scanner\Services\CodeAnalyzer;
+use Exception;
 
 /**
- * Service pro generování exportů s detailním reportingem problémů
- *
+ * Service pro generování textových exportů a AI kontextů
+ * Zajišťuje formátování výsledků analýzy do čitelné podoby
+ * Generuje detailní reporty problémů s návrhy na opravy
+ * Vytváří strukturované výstupy pro AI asistenci
+ * 
  * @package Scanner\Services
  * @author KRS3
  * @version 2.1
  */
 class ExportService
 {
+    /** @var Logger Instance loggeru pro zaznamenávání operací */
     private Logger $logger;
 
+    /** @var array Konfigurace aplikace */
     private array $config;
 
-	public function __construct(array $config = [])
+    /**
+     * Inicializuje export service s konfigurací
+     * Nastavuje logger a připravuje service pro generování exportů
+     *
+     * @param array $config Konfigurace aplikace
+     */
+    public function __construct(array $config = [])
     {
         $this->config = $config;
-        //print_r($config);exit;
         $this->logger = Logger::getInstance();
-        //$this->logger = new AdvancedLogger();
         $this->logger->info('ExportService initialized');
     }
 
     /**
-     * Vygeneruje textový export s detailními problémy
+     * Vygeneruje kompletní textový export projektu s detailní analýzou problémů
+     * Kombinuje strukturu projektu, kontrolu souborů a výsledky analýzy kvality kódu
      *
      * @param string $projectName Název projektu
-     * @param array $structure Projektová struktura
-     * @param array $importantFiles Výsledky kontroly důležitých souborů
-     * @param string $projectPath Cesta k projektu (volitelné)
-     * @param array $aiRules Pravidla AI (volitelné)
+     * @param array $structure Projektová struktura jako pole zobrazených řádků
+     * @param array $importantFiles Výsledky kontroly důležitých souborů [soubor => existuje]
+     * @param string|null $projectPath Cesta k projektu pro analýzu kvality (volitelné)
+     * @param array|null $aiRules Pravidla AI pro analýzu kódu (volitelné)
      * @return string Naformátovaný textový export s problémy
      */
-    public function generateTextExport(string $projectName, array $structure, array $importantFiles, string $projectPath = null, array $aiRules = null): string
-    {
+    public function generateTextExport(
+        string $projectName, 
+        array $structure, 
+        array $importantFiles, 
+        ?string $projectPath = null, 
+        ?array $aiRules = null
+    ): string {
         $this->logger->info('Generating text export', ['project' => $projectName]);
         
         $export = "=== PROJECT EXPORT: $projectName ===\n";
@@ -66,10 +80,10 @@ class ExportService
         if ($projectPath && $aiRules && is_dir($projectPath)) {
             try {
                 $this->logger->debug('Running code quality analysis');
-                $codeAnalyzer = new CodeAnalyzer($this->config);  // ← PŘEDAT CONFIG!
+                $codeAnalyzer = new CodeAnalyzer($this->config);
                 $qualityAnalysis = $codeAnalyzer->analyzeCodeQuality($projectPath, $aiRules);
                 $export .= $this->generateDetailedProblemsSection($qualityAnalysis);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->logger->error('Code analysis failed', ['error' => $e->getMessage()]);
                 $export .= "\n🔍 CODE QUALITY ANALYSIS: ❌ Chyba - {$e->getMessage()}\n";
             }
@@ -82,11 +96,13 @@ class ExportService
         $this->logger->info('Text export generated successfully');
         return $export;
     }
+
     /**
-     * Vygeneruje sekci s detailními problémy
+     * Vygeneruje sekci s detailními problémy kvality kódu
+     * Zobrazuje statistiky a strukturovaný výpis problémů podle závažnosti
      *
-     * @param array $qualityAnalysis Výsledky analýzy kvality
-     * @return string Naformátovaná sekce problémů
+     * @param array $qualityAnalysis Výsledky analýzy kvality od CodeAnalyzer
+     * @return string Naformátovaná sekce problémů pro textový export
      */
     private function generateDetailedProblemsSection(array $qualityAnalysis): string
     {
@@ -119,10 +135,11 @@ class ExportService
     }
 
     /**
-     * Vygeneruje detailní výpis problémů pro každý soubor
+     * Vygeneruje detailní výpis problémů pro každý soubor s návrhy na opravu
+     * Formátuje problémy do čitelné podoby s ikonami závažnosti a příklady
      *
-     * @param array $filesWithProblems Soubory s problémy
-     * @return string Naformátovaný výpis problémů
+     * @param array $filesWithProblems Asociativní pole [cesta_souboru => problémy]
+     * @return string Naformátovaný výpis problémů pro textový export
      */
     private function generateFileProblemsDetails(array $filesWithProblems): string
     {
@@ -139,7 +156,6 @@ class ExportService
                 $section .= "       {$severityIcon} {$problem['description']}\n";
                 $section .= "          💡 NÁVRH: {$problem['suggestion']}\n";
                 
-                // Přidat příklad pokud existuje
                 if (!empty($problem['example'])) {
                     $exampleLines = explode("\n", $problem['example']);
                     if (count($exampleLines) > 0) {
@@ -153,16 +169,16 @@ class ExportService
     }
 
     /**
-     * Vygeneruje původní sekce problémů pro kompatibilitu
+     * Vygeneruje původní sekce problémů pro zpětnou kompatibilitu
+     * Zachovává formát výstupu pro existující integrace
      *
      * @param array $qualityAnalysis Výsledky analýzy kvality
-     * @return string Naformátované původní sekce
+     * @return string Naformátované původní sekce problémů
      */
     private function generateLegacyProblemsSections(array $qualityAnalysis): string
     {
         $section = "";
 
-        // 📋 SOUBORY BEZ PHP DOC (původní formát)
         if (!empty($qualityAnalysis['soubory_bez_phpdoc'])) {
             $section .= "\n  📋 Soubory bez PHP Doc:\n";
             foreach (array_slice($qualityAnalysis['soubory_bez_phpdoc'], 0, 10) as $file) {
@@ -170,7 +186,6 @@ class ExportService
             }
         }
 
-        // 📋 SOUBORY BEZ LOGGERU (původní formát)
         if (!empty($qualityAnalysis['soubory_bez_loggeru'])) {
             $section .= "\n  📋 Soubory bez Loggeru:\n";
             foreach (array_slice($qualityAnalysis['soubory_bez_loggeru'], 0, 10) as $file) {
@@ -178,7 +193,6 @@ class ExportService
             }
         }
 
-        // 📋 SOUBORY BEZ NAMESPACES (původní formát)
         if (!empty($qualityAnalysis['soubory_bez_namespaces'])) {
             $section .= "\n  📋 Soubory bez Namespaces:\n";
             foreach (array_slice($qualityAnalysis['soubory_bez_namespaces'], 0, 10) as $file) {
@@ -190,10 +204,11 @@ class ExportService
     }
 
     /**
-     * Vrátí ikonu podle závažnosti problému
+     * Vrátí Unicode ikonu podle závažnosti problému
+     * Používá se pro vizuální rozlišení typů problémů v exportu
      *
-     * @param string $severity Závažnost problému
-     * @return string Ikona
+     * @param string $severity Závažnost problému ('critical', 'error', 'warning', 'info')
+     * @return string Unicode ikona pro danou závažnost
      */
     private function getSeverityIcon(string $severity): string
     {
@@ -207,14 +222,15 @@ class ExportService
     }
 
     /**
-     * Vygeneruje AI kontext s detailními informacemi o problémech
+     * Vygeneruje strukturovaný AI kontext pro asistenci při vývoji
+     * Obsahuje standardy kódování, stav projektu a problémy kvality
      *
      * @param string $projectName Název projektu
-     * @param array $structure Projektová struktura
-     * @param array $importantFiles Stav důležitých souborů
-     * @param array $aiRules Pravidla chování AI
+     * @param array $structure Projektová struktura jako pole zobrazených řádků
+     * @param array $importantFiles Stav důležitých souborů [soubor => existuje]
+     * @param array $aiRules Pravidla chování AI a standardy kódování
      * @param array $qualityAnalysis Výsledky analýzy kvality (volitelné)
-     * @return string Informace AI kontextu
+     * @return string Informace AI kontextu pro použití v AI nástrojích
      */
     public function generateAIContext(
         string $projectName, 
@@ -235,7 +251,6 @@ class ExportService
             $context .= "  $status - $rule\n";
         }
 
-        // 🔍 PŘIDÁNÍ INFORMACÍ O PROBLÉMECH DO AI CONTEXTU
         if (!empty($qualityAnalysis)) {
             $context .= $this->generateAIProblemsContext($qualityAnalysis);
         }
@@ -257,10 +272,11 @@ class ExportService
     }
 
     /**
-     * Vygeneruje sekci problémů pro AI kontext
+     * Vygeneruje sekci problémů kvality kódu pro AI kontext
+     * Formátuje problémy pro efektivní zpracování AI nástroji
      *
      * @param array $qualityAnalysis Výsledky analýzy kvality
-     * @return string Naformátovaná sekce problémů pro AI
+     * @return string Naformátovaná sekce problémů optimalizovaná pro AI
      */
     private function generateAIProblemsContext(array $qualityAnalysis): string
     {

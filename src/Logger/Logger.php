@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Scanner\Logger;
 
-// Třída App\Core\Config se zde importuje, ale volá se POUZE z getInstance()
-// pro zpětnou kompatibilitu, pokud nebylo nastaveno nic jiného.
-use App\Core\Config; 
+use App\Core\Config;
 
 /**
- * Třída pro logování zpráv na obrazovku a do souboru s podporou úrovní logování a rotace.
- * Implementuje vzor Singleton s možností externí konfigurace.
- *
- * @package App\Logger
+ * Pokročilý logger s podporou úrovní logování, rotace souborů a výstupů
+ * Implementuje vzor Singleton s možností externí konfigurace
+ * Poskytuje zápis na obrazovku, do souborů s rotací a bezpečnostní features
+ * 
+ * @package Scanner\Logger
  * @author KRS3
  * @version 3.0 (Refaktorovaná verze s flexibilním Singletonem)
  */
@@ -34,7 +33,7 @@ class Logger
     protected string $baseLogDir;
 
     /** @var bool Určuje, zda se logy vypisují na obrazovku */
-    protected bool $echoOutput; // Změněno z private na protected
+    protected bool $echoOutput;
 
     /** @var bool Určuje, zda se logy zapisují do souboru */
     private bool $fileOutput;
@@ -86,9 +85,10 @@ class Logger
     ];
 
     /**
-     * Uloží konfiguraci pro použití při prvním volání getInstance().
+     * Uloží externí konfiguraci pro použití při prvním volání getInstance()
+     * Musí být voláno před prvním getInstance() pro vlastní konfiguraci
      *
-     * @param array $config Konfigurace pro logger.
+     * @param array $config Konfigurace pro logger
      * @return void
      */
     public static function setExternalConfig(array $config): void
@@ -97,7 +97,49 @@ class Logger
     }
 
     /**
-     * Konstruktor třídy Logger.
+     * Vrátí singleton instanci třídy Logger
+     * Používá externí konfiguraci nebo fallback na App\Core\Config pro kompatibilitu
+     *
+     * @return self Instance třídy Logger
+     */
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            $config = self::$externalConfig;
+            
+            // LOGIKA PRO ZPĚTNOU KOMPATIBILITU: Fallback na App\Core\Config
+            if (empty($config) && class_exists('\App\Core\Config')) {
+                $config = [
+                    'level' => Config::logs('level', 'INFO'),
+                    'echo' => Config::logs('echo', true),
+                    'file' => Config::logs('file', true),
+                    'rotation' => Config::logs('rotation', 'none'),
+                    'max_size' => Config::logs('max_size', 10485760),
+                    'max_files' => Config::logs('max_files', 30),
+                    'file_path' => Config::logs('dir', '') . (Config::logs('file', '') ?: 'app.log')
+                ];
+            }
+
+            self::$instance = new self($config);
+        }
+        return self::$instance;
+    }
+
+    /**
+     * Resetuje singleton instanci (hlavně pro unit testy)
+     * Vymaže instanci i externí konfiguraci
+     *
+     * @return void
+     */
+    public static function resetInstance(): void
+    {
+        self::$instance = null;
+        self::$externalConfig = [];
+    }
+
+    /**
+     * Konstruktor třídy Logger
+     * Inicializuje logger s konfigurací a připraví výstupy
      *
      * @param array $config Konfigurace loggeru
      * @throws \InvalidArgumentException Pokud je konfigurace neplatná
@@ -105,10 +147,9 @@ class Logger
     public function __construct(array $config = [])
     {
         $config = array_merge(self::DEFAULT_CONFIG, $config);
-			//print_r($config);
+
         // ZAJIŠTĚNÍ UNIVERZÁLNÍ DEFAULTNÍ CESTY K SOUBORU
         if (empty($config['file_path'])) {
-            // Použije se systémový temp adresář jako bezpečný, univerzální default
             $config['file_path'] = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'app.log'; 
         }
 
@@ -135,47 +176,8 @@ class Logger
     }
 
     /**
-     * Vrátí singleton instanci třídy Logger.
-     *
-     * @return self Instance třídy Logger
-     */
-    public static function getInstance(): self
-    {
-        if (self::$instance === null) {
-            $config = self::$externalConfig;
-            
-            // LOGIKA PRO ZPĚTNOU KOMPATIBILITU: Fallback na App\Core\Config
-            if (empty($config) && class_exists('\App\Core\Config')) {
-                // Tato část se spustí POUZE, pokud setExternalConfig NEBYLO VOLÁNO
-                $config = [
-                    'level' => Config::logs('level', 'INFO'),
-                    'echo' => Config::logs('echo', true),
-                    'file' => Config::logs('file', true),
-                    'rotation' => Config::logs('rotation', 'none'),
-                    'max_size' => Config::logs('max_size', 10485760),
-                    'max_files' => Config::logs('max_files', 30),
-                    'file_path' => Config::logs('dir', '') . (Config::logs('file', '') ?: 'app.log')
-                ];
-            }
-
-            self::$instance = new self($config);
-        }
-        return self::$instance;
-    }
-
-    /**
-     * Resetuje singleton instanci (hlavně pro unit testy)
-     *
-     * @return void
-     */
-    public static function resetInstance(): void
-    {
-        self::$instance = null;
-        self::$externalConfig = [];
-    }
-
-    /**
      * Interní metoda pro nastavení log souboru s validací
+     * Kontroluje bezpečnost cesty a normalizuje separátory
      *
      * @param string $logFile Cesta k souboru
      * @throws \InvalidArgumentException Pokud je cesta neplatná
@@ -185,7 +187,7 @@ class Logger
     {
         // Normalizace cesty
         $logFile = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $logFile);
-//print_r($logFile);
+
         // Získání adresáře
         $logDir = dirname($logFile);
         
@@ -199,10 +201,11 @@ class Logger
     }
 
     /**
-     * Interní metoda pro nastavení rotace
+     * Interní metoda pro nastavení rotace s validací parametrů
+     * Zajišťuje konzistenci nastavení rotace souborů
      *
      * @param string $rotation Typ rotace
-     * @param int $maxSize Maximální velikost
+     * @param int $maxSize Maximální velikost souboru v bytech
      * @param int $maxFiles Maximální počet souborů
      * @throws \InvalidArgumentException Pokud je typ rotace neplatný
      * @return void
@@ -222,17 +225,18 @@ class Logger
 
     /**
      * Zajistí existenci adresáře pro logy
+     * Vytvoří adresářovou strukturu pokud neexistuje
      *
      * @return bool True pokud adresář existuje nebo byl úspěšně vytvořen
      */
-    protected function ensureLogDirectory(): bool // Změněno z private na protected
+    protected function ensureLogDirectory(): bool
     {
         $logDir = dirname($this->currentLogFile);
 
         if (is_dir($logDir)) {
             return true;
         }
-print_r($logDir);
+
         if (!@mkdir($logDir, 0755, true)) {
             $error = error_get_last();
             if ($this->echoOutput) {
@@ -247,6 +251,7 @@ print_r($logDir);
 
     /**
      * Vygeneruje název log souboru podle nastavené rotace
+     * Přidává časové suffixy pro denní a hodinovou rotaci
      *
      * @return string Název souboru
      */
@@ -277,6 +282,7 @@ print_r($logDir);
 
     /**
      * Zkontroluje a provede rotaci log souborů pokud je potřeba
+     * Spouští se automaticky před každým zápisem do souboru
      *
      * @return void
      */
@@ -292,7 +298,6 @@ print_r($logDir);
             if ($newLogFile !== $this->currentLogFile) {
                 $this->currentLogFile = $newLogFile;
                 $this->ensureLogDirectory();
-                // Vyčistíme staré soubory při změně časového intervalu
                 $this->cleanOldFiles();
             }
         }
@@ -307,6 +312,7 @@ print_r($logDir);
 
     /**
      * Provede rotaci logů podle velikosti s ochranou proti race condition
+     * Používá souborové zámky pro bezpečnost v multi-process prostředí
      *
      * @return void
      */
@@ -323,28 +329,25 @@ print_r($logDir);
 
         // Přesuneme aktuální soubor do archivu s exkluzivním zámkem
         if (file_exists($this->currentLogFile)) {
-            // Pokusíme se získat zámek na soubor
             $fp = @fopen($this->currentLogFile, 'r+');
             if ($fp !== false) {
                 if (flock($fp, LOCK_EX | LOCK_NB)) {
-                    // Máme exkluzivní zámek, můžeme bezpečně přesunout
                     flock($fp, LOCK_UN);
                     fclose($fp);
                     @rename($this->currentLogFile, $archivedFile);
                 } else {
-                    // Nemůžeme získat zámek, jiný proces právě rotuje
                     fclose($fp);
                     return;
                 }
             }
         }
 
-        // Vyčistíme staré soubory
         $this->cleanOldFiles();
     }
 
     /**
      * Smaže staré log soubory podle nastavení max_files s cache optimalizací
+     * Používá cache pro snížení I/O operací při častých kontrolách
      *
      * @return void
      */
@@ -362,7 +365,6 @@ print_r($logDir);
         // Použijeme cache pro seznam souborů
         $now = time();
         if (empty($this->filesCache) || ($now - $this->cacheTime) > self::CACHE_TTL) {
-            // Najdeme všechny soubory, které odpovídají patternu
             $pattern = $dirname . DIRECTORY_SEPARATOR . $filename . '-*' . $extension;
             $files = glob($pattern);
 
@@ -399,19 +401,19 @@ print_r($logDir);
     
     /**
      * Pomocná metoda pro sanitizaci zprávy proti log injection
+     * Odstraňuje nebezpečné znaky které by mohly narušit formát logu
      *
      * @param string $message Zpráva k zalogování
      * @return string Sanitizovaná zpráva
      */
     private function escapeMessage(string $message): string
     {
-        // POUZE PŘÍKLAD: Odstranění potenciálně nebezpečných znaků pro zalomení řádku v logu
         return str_replace(["\n", "\r", "\t"], ' ', $message);
     }
 
-
     /**
-     * Zapíše zprávu do logu, pokud úroveň logování je dostatečně vysoká
+     * Hlavní metoda pro logování zpráv s úrovní závažnosti
+     * Zajišťuje filtrování, sanitizaci, formátování a zápis na výstupy
      *
      * @param string $message Zpráva k zalogování
      * @param string $level Úroveň logování
@@ -422,7 +424,7 @@ print_r($logDir);
         $levelUpper = strtoupper($level);
         $levelValue = self::LEVELS[$levelUpper] ?? self::LEVELS['INFO'];
 
-        // 1. FILTROVÁNÍ
+        // 1. FILTROVÁNÍ podle úrovně
         if ($levelValue < $this->logLevel) {
             return;
         }
@@ -430,7 +432,7 @@ print_r($logDir);
         // 2. BEZPEČNOST: Sanitizace zprávy
         $message = $this->escapeMessage($message);
 
-        // 3. FORMÁTOVÁNÍ
+        // 3. FORMÁTOVÁNÍ záznamu
         $timestamp = date('Y-m-d H:i:s');
         $logEntry = "[{$timestamp}] {$levelUpper}: {$message}" . PHP_EOL;
 
@@ -439,7 +441,7 @@ print_r($logDir);
             echo $logEntry;
         }
 
-        // 5. Zápis do souboru (rotace a uzamykání)
+        // 5. Zápis do souboru s rotací a uzamykáním
         if ($this->fileOutput) {
             $this->checkRotation();
 
@@ -448,7 +450,6 @@ print_r($logDir);
             }
 
             try {
-                // Pokusíme se zapsat s exkluzivním zámkem
                 $result = @file_put_contents($this->currentLogFile, $logEntry, FILE_APPEND | LOCK_EX);
 
                 if ($result === false) {
@@ -467,7 +468,7 @@ print_r($logDir);
     }
 
     /**
-     * Zapíše ladící zprávu do logu
+     * Zapíše ladící zprávu do logu (nejnižší úroveň)
      *
      * @param string $message Ladící zpráva k zalogování
      * @return void
@@ -522,7 +523,7 @@ print_r($logDir);
     }
 
     /**
-     * Zapíše výjimku do logu včetně stack trace
+     * Zapíše výjimku do logu včetně stack trace a kontextových informací
      *
      * @param \Throwable $e Výjimka k zalogování
      * @param string $message Volitelná zpráva k výjimce
@@ -535,14 +536,13 @@ print_r($logDir);
         $fullMessage .= "File: " . $e->getFile() . " (Line: " . $e->getLine() . ")" . PHP_EOL;
         $fullMessage .= "Stack trace:" . PHP_EOL . $e->getTraceAsString();
 
-        // Pozn.: $fullMessage je escapována v metodě log()
         $this->log($fullMessage, "EXCEPTION");
     }
     
     // --- Settery ---
 
     /**
-     * Nastaví úroveň logování
+     * Nastaví úroveň logování s validací
      *
      * @param string $level Úroveň logování
      * @throws \InvalidArgumentException Pokud je úroveň neplatná
@@ -572,6 +572,7 @@ print_r($logDir);
 
     /**
      * Nastaví, zda se logy zapisují do souboru
+     * Automaticky zajistí existenci adresáře při zapnutí
      *
      * @param bool $fileOutput True pro zapnutí zápisu do souboru
      * @return void
@@ -585,7 +586,7 @@ print_r($logDir);
     }
 
     /**
-     * Nastaví rotaci logů
+     * Nastaví rotaci logů s validací parametrů
      *
      * @param string $rotation Typ rotace (none, daily, hourly, size)
      * @param int $maxSize Maximální velikost souboru v bytech (pouze pro size)
@@ -603,7 +604,7 @@ print_r($logDir);
     }
 
     /**
-     * Nastaví cestu k log souboru
+     * Nastaví cestu k log souboru s validací bezpečnosti
      *
      * @param string $logFile Cesta k souboru
      * @throws \InvalidArgumentException Pokud je cesta neplatná
@@ -622,7 +623,7 @@ print_r($logDir);
     // --- Gettery ---
 
     /**
-     * Vrátí aktuální úroveň logování (string)
+     * Vrátí aktuální úroveň logování jako string
      *
      * @return string Aktuální úroveň logování
      */

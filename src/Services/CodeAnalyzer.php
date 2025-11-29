@@ -2,7 +2,9 @@
 // scanner/src/Services/CodeAnalyzer.php
 
 /**
- * Analyzátor kódu pro kontrolu kvality s detailním reportingem
+ * Hlavní analyzátor kódu pro kontrolu kvality PHP projektů
+ * Poskytuje detailní analýzu PHP Doc, namespaces, loggerů a syntaxe
+ * S generováním strukturovaných reportů s návrhy na opravy
  * 
  * @package Scanner\Services
  * @author KRS3
@@ -19,7 +21,16 @@ class CodeAnalyzer
 {
     private array $config;
     
-    // 🔍 NOVÉ: Definice problémů a jejich popisů
+    /**
+     * Definice typů problémů s jejich závažností a návody na opravu
+     * 
+     * @var array<string, array{
+     *   description: string,
+     *   severity: 'critical'|'error'|'warning'|'info',
+     *   suggestion: string,
+     *   example: string
+     * }>
+     */
     private const PROBLEM_DEFINITIONS = [
         'missing_phpdoc_class' => [
             'description' => 'Třída nemá PHP Doc komentář',
@@ -60,7 +71,7 @@ class CodeAnalyzer
     ];
     
     /**
-     * Constructor
+     * Inicializuje analyzátor s konfigurací
      *
      * @param array $config Konfigurace aplikace
      */
@@ -70,7 +81,21 @@ class CodeAnalyzer
     }
 
     /**
-     * Analyzuje PHP soubory s detailním reportingem problémů
+     * Hlavní akce analyzátoru - spustí analýzu kódu
+     * Alias pro analyzeCodeQuality pro zachování kompatibility
+     *
+     * @param string $projectPath Cesta k projektu
+     * @param array $rules Pravidla pro analýzu
+     * @return array Výsledky analýzy
+     */
+    public function action(string $projectPath, array $rules): array
+    {
+        return $this->analyzeCodeQuality($projectPath, $rules);
+    }
+
+    /**
+     * Analyzuje PHP soubory projektu s detailním reportingem problémů
+     * Prochází všechny PHP soubory a kontroluje kvalitu kódu
      *
      * @param string $projectPath Cesta k projektu
      * @param array $aiRules Pravidla pro analýzu
@@ -79,13 +104,13 @@ class CodeAnalyzer
     public function analyzeCodeQuality(string $projectPath, array $aiRules): array
     {
         $analysis = [
-            'soubory_s_problemy' => [], // 🔍 NOVÉ: Detailní problémy
+            'soubory_s_problemy' => [],
             'soubory_bez_phpdoc' => [],
             'soubory_bez_loggeru' => [], 
             'soubory_bez_namespaces' => [],
             'celkem_souboru' => 0,
             'celkem_radku' => 0,
-            'problemy_podle_zavaznosti' => [ // 🔍 NOVÉ: Kategorizace
+            'problemy_podle_zavaznosti' => [
                 'critical' => [],
                 'error' => [],
                 'warning' => [],
@@ -100,17 +125,14 @@ class CodeAnalyzer
             $fileAnalysis = $this->analyzePhpFile($phpFile, $aiRules);
             $analysis['celkem_radku'] += $fileAnalysis['radku'];
 
-            // 🔍 NOVÉ: Ukládání detailních problémů
             if (!empty($fileAnalysis['problemy'])) {
                 $analysis['soubory_s_problemy'][$phpFile] = $fileAnalysis['problemy'];
                 
-                // Kategorizace podle závažnosti
                 foreach ($fileAnalysis['problemy'] as $problem) {
                     $analysis['problemy_podle_zavaznosti'][$problem['severity']][] = $problem;
                 }
             }
 
-            // Zachovat původní strukturu pro kompatibilitu
             if (!$fileAnalysis['ma_phpdoc']) {
                 $analysis['soubory_bez_phpdoc'][] = $phpFile;
             }
@@ -129,6 +151,7 @@ class CodeAnalyzer
 
     /**
      * Analyzuje jednotlivý PHP soubor s detailními problémy
+     * Kontroluje PHP Doc, namespaces, logger, strict types a syntax
      *
      * @param string $filePath Cesta k PHP souboru
      * @param array $aiRules Pravidla pro analýzu
@@ -143,18 +166,14 @@ class CodeAnalyzer
             'ma_strict_types' => false,
             'ma_namespace' => false,
             'radku' => count(file($filePath)),
-            'problemy' => [], // 🔍 NOVÉ: Pole problémů
+            'problemy' => [],
             'chyby' => []
         ];
 
-        // 🔍 DETAILLNÍ KONTROLY S PROBLEM REPORTINGEM
-        
-        // Kontrola PHP Doc s detaily
         $phpdocCheck = $this->checkPhpDocWithDetails($content, $filePath);
         $analysis['ma_phpdoc'] = $phpdocCheck['has_phpdoc'];
         $analysis['problemy'] = array_merge($analysis['problemy'], $phpdocCheck['problems']);
 
-        // Kontrola strict_types
         if (!str_contains($content, "declare(strict_types=1)")) {
             $analysis['problemy'][] = $this->createProblem(
                 'no_strict_types', 
@@ -165,17 +184,14 @@ class CodeAnalyzer
             $analysis['ma_strict_types'] = true;
         }
 
-        // Kontrola namespaces
         $namespaceCheck = $this->checkNamespacesWithDetails($content, $filePath);
         $analysis['ma_namespace'] = $namespaceCheck['has_namespace'];
         $analysis['problemy'] = array_merge($analysis['problemy'], $namespaceCheck['problems']);
 
-        // Kontrola loggeru
         $loggerCheck = $this->checkLoggerWithDetails($content, $filePath);
         $analysis['ma_logger'] = $loggerCheck['has_logger'];
         $analysis['problemy'] = array_merge($analysis['problemy'], $loggerCheck['problems']);
 
-        // Kontrola syntaxe
         if ($this->config['system']['check_syntax'] ?? true) {
             $syntaxProblems = $this->checkSyntaxWithDetails($filePath);
             $analysis['problemy'] = array_merge($analysis['problemy'], $syntaxProblems);
@@ -185,7 +201,8 @@ class CodeAnalyzer
     }
 
     /**
-     * Kontroluje PHP Doc s detailním problém reportingem
+     * Kontroluje PHP Doc komentáře s detailním problém reportingem
+     * Hledá chybějící dokumentaci pro třídy a metody
      *
      * @param string $content Obsah souboru
      * @param string $filePath Cesta k souboru
@@ -195,7 +212,6 @@ class CodeAnalyzer
     {
         $result = ['has_phpdoc' => false, 'problems' => []];
         
-        // Kontrola existence PHP Doc pro třídu
         if (preg_match('/class\s+(\w+)/', $content, $classMatches)) {
             $className = $classMatches[1];
             $classDocPattern = '/\/\*\*[\s\S]*?\*\/\s*class\s+' . $className . '/';
@@ -211,11 +227,10 @@ class CodeAnalyzer
             }
         }
         
-        // Kontrola PHP Doc pro metody (základní)
         if (preg_match_all('/function\s+(\w+)\s*\(/m', $content, $methodMatches)) {
             foreach ($methodMatches[1] as $methodName) {
                 if ($methodName === '__construct' || $methodName === '__destruct') {
-                    continue; // Konstruktor a destruktor mohou být bez PHP Doc
+                    continue;
                 }
                 
                 $methodDocPattern = '/\/\*\*[\s\S]*?\*\/\s*function\s+' . $methodName . '\s*\(/';
@@ -234,6 +249,7 @@ class CodeAnalyzer
 
     /**
      * Kontroluje namespaces s detailním problém reportingem
+     * Validuje přítomnost namespaces podle PSR-4 standardů
      *
      * @param string $content Obsah souboru
      * @param string $filePath Cesta k souboru
@@ -258,7 +274,8 @@ class CodeAnalyzer
     }
 
     /**
-     * Kontroluje logger s detailním problém reportingem
+     * Kontroluje přítomnost loggeru s detailním problém reportingem
+     * Validuje použití loggeru v service a controller třídách
      *
      * @param string $content Obsah souboru
      * @param string $filePath Cesta k souboru
@@ -286,10 +303,12 @@ class CodeAnalyzer
     }
 
     /**
-     * Kontroluje syntaxi s detailním problém reportingem
+     * Kontroluje syntaxi PHP souboru s detailním problém reportingem
+     * Používá PHP lint pro validaci syntaxe
      *
      * @param string $filePath Cesta k souboru
      * @return array Pole syntax problémů
+     * @throws RuntimeException Pokud nelze najít PHP binárku
      */
     private function checkSyntaxWithDetails(string $filePath): array
     {
@@ -322,7 +341,8 @@ class CodeAnalyzer
     }
 
     /**
-     * Vytvoří strukturovaný problém
+     * Vytvoří strukturovaný problém pro reporting
+     * Používá definice z PROBLEM_DEFINITIONS pro konzistentní zprávy
      *
      * @param string $type Typ problému
      * @param string $filePath Cesta k souboru
@@ -349,19 +369,17 @@ class CodeAnalyzer
         ];
     }
 
-    // === ✅ PŮVODNÍ ČÁST - BEZ ZMĚN ===
-
     /**
      * Inteligentně detekuje PHP binárku pro aktuální systém
+     * Prioritizuje systémové PHP, pak konfiguraci, nakonec automatickou detekci
      *
      * @return string Cesta k PHP binárce
-     * @throws RuntimeException Pokud nelze najít PHP
+     * @throws RuntimeException Pokud nelze najít platnou PHP binárku
      */
     public function getPhpBinary(): string
     {
         $os = strtoupper(substr(PHP_OS, 0, 3));
         
-        // Nejprve zkusíme systémové PHP
         if ($os !== 'WIN') {
             $systemPhp = shell_exec('which php 2>/dev/null');
             if ($systemPhp && $this->isValidPhpBinary(trim($systemPhp))) {
@@ -369,7 +387,6 @@ class CodeAnalyzer
             }
         }
         
-        // Pak fallback na konfiguraci
         $config = $this->config['system'] ?? [];
         
         if ($os === 'WIN') {
@@ -389,12 +406,12 @@ class CodeAnalyzer
             }
         }
         
-        // Nakonec zkusíme všechny možné cesty
         return $this->detectPhpBinary();
     }
 
     /**
      * Detekuje PHP binárku procházením všech možných cest
+     * Prohledává standardní instalační cesty na různých OS
      *
      * @return string Cesta k PHP binárce
      * @throws RuntimeException Pokud nelze najít PHP
@@ -402,12 +419,10 @@ class CodeAnalyzer
     private function detectPhpBinary(): string
     {
         $possible_paths = [
-            // Linux/Mac
             '/opt/lampp/bin/php',
             '/usr/bin/php',
             '/usr/local/bin/php',
             'php',
-            // Windows
             'C:\\xampp\\php\\php.exe',
             'C:\\Program Files\\xampp\\php\\php.exe',
             'php.exe'
@@ -424,13 +439,13 @@ class CodeAnalyzer
 
     /**
      * Ověří zda je PHP binárka platná a spustitelná
+     * Kontroluje existenci souboru a spustitelnost příkazem php -v
      *
      * @param string $path Cesta k PHP binárce
      * @return bool True pokud je binárka platná
      */
     private function isValidPhpBinary(string $path): bool
     {
-        // Pro systémové cesty (php, php.exe)
         if (strpos($path, '/') === false && strpos($path, '\\') === false) {
             $output = [];
             $returnCode = 0;
@@ -438,12 +453,12 @@ class CodeAnalyzer
             return $returnCode === 0;
         }
         
-        // Pro plné cesty
         return file_exists($path) && is_executable($path);
     }
 
     /**
-     * Najde všechny PHP soubory v projektu
+     * Najde všechny PHP soubory v projektu pomocí rekurzivního iteratoru
+     * Prochází všechny adresáře a vrací kompletní seznam PHP souborů
      *
      * @param string $path Cesta k projektu
      * @return array Seznam PHP souborů
@@ -466,7 +481,9 @@ class CodeAnalyzer
     }
 
     /**
-     * Určí zda by soubor měl mít namespace
+     * Určí zda by soubor měl mít namespace podle PSR-4
+     * Soubory v src/, app/ a třídy by měly mít namespace
+     * Konfigurační soubory a vstupní body mohou být bez namespace
      *
      * @param string $filePath Cesta k souboru
      * @return bool True pokud by měl mít namespace
@@ -506,6 +523,7 @@ class CodeAnalyzer
 
     /**
      * Určí zda by soubor měl mít logger
+     * Service třídy, Controllers a Auth soubory by měly mít logger
      *
      * @param string $filePath Cesta k souboru
      * @return bool True pokud by měl mít logger
