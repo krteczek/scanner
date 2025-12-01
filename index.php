@@ -20,11 +20,35 @@ require_once __DIR__ . '/autoloader.php';
 if (isset($_GET['preview'])) {
     $filePath = $_GET['preview'];
     if (file_exists($filePath) && is_file($filePath)) {
-        $fileContent = htmlspecialchars(file_get_contents($filePath));
+        $content = file_get_contents($filePath);
         $fileName = basename($filePath);
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+
+        // 🔥 OPRAVA: Použít highlight_string pro PHP/HTML/JS/CSS soubory
+        if (in_array($extension, ['php', 'html', 'js', 'css'])) {
+            ob_start();
+            highlight_string($content);
+            $fileContent = ob_get_clean();
+        } else {
+            $fileContent = htmlspecialchars($content);
+        }
 
         echo "<!DOCTYPE html><html><head><title>Preview: $fileName</title>";
         echo "<link rel='stylesheet' href='public/style.css'>";
+
+        // 🔥 DŮLEŽITÉ: Přidat CSS pro syntax highlighting
+        echo "<style>
+            .php-source, .html, .keyword, .string, .comment, .default {
+                font-family: 'Courier New', monospace;
+            }
+            .php-source { color: #000000; }
+            .html { color: #0000BB; }
+            .keyword { color: #007700; font-weight: bold; }
+            .string { color: #DD0000; }
+            .comment { color: #FF8000; }
+            .default { color: #0000BB; }
+        </style>";
+
         echo "<style>
             .preview-container {
                 background: #f8f9fa;
@@ -68,7 +92,14 @@ if (isset($_GET['preview'])) {
             function copyCode() {
                 const codeContent = document.getElementById('codeContent');
                 const textArea = document.createElement('textarea');
-                textArea.value = codeContent.textContent;
+
+                // 🔥 OPRAVA: Získat textový obsah (bez HTML tagů)
+                if (codeContent.textContent) {
+                    textArea.value = codeContent.textContent;
+                } else {
+                    textArea.value = codeContent.innerText || codeContent.innerHTML.replace(/<[^>]*>/g, '');
+                }
+
                 document.body.appendChild(textArea);
                 textArea.select();
                 try {
@@ -84,7 +115,6 @@ if (isset($_GET['preview'])) {
         exit;
     }
 }
-
 // 🔥 NOVÉ: LOAD DIRECTORY ACTION
 if (isset($_GET['action']) && $_GET['action'] === 'load_dir' && isset($_GET['path'])) {
     $dirPath = $_GET['path'];

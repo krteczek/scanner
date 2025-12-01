@@ -467,13 +467,24 @@ private function renderFilePreview(string $filePath, string $fileName, int $inde
                   data-content='{$htmlSafeContent}'>📋 Kopírovat</button>";
     echo "</div>";
 
-    echo "<div class='file-content'>";
-    if (in_array($extension, ['php', 'html', 'js', 'css'])) {
-        highlight_string($content);
+echo "<div class='file-content'>";
+if (in_array($extension, ['php', 'html', 'js', 'css'])) {
+    // ZAPNOUT output buffering
+    ob_start();
+    $result = highlight_string($content, true); // true = return as string
+    $highlighted = ob_get_clean();
+
+    if ($result === false && !empty($highlighted)) {
+        echo $highlighted;
+    } elseif ($result !== false) {
+        echo $result;
     } else {
-        echo htmlspecialchars($content);
+        echo '<pre>' . htmlspecialchars($content) . '</pre>';
     }
-    echo "</div>";
+} else {
+    echo '<pre>' . htmlspecialchars($content) . '</pre>';
+}
+echo "</div>";
     echo "</div>";
 }
     /**
