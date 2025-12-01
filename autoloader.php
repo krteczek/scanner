@@ -3,10 +3,6 @@
 
 declare(strict_types=1);
 
-// ✅ 1. NEJDŘÍV NAČÍST LOGGER SYSTÉM Z KRS3
-//require_once __DIR__ . '/app/Logger/Logger.php';
-//require_once __DIR__ . '/../krs3/app/Logger/AdvancedLogger.php';
-
 // ✅ 2. AUTOLOADER PRO SCANNER TŘÍDY
 spl_autoload_register(function ($className) {
     $prefix = 'Scanner\\';
@@ -23,10 +19,10 @@ spl_autoload_register(function ($className) {
 
     if (file_exists($file)) {
         require_once $file;
-        echo "🔧 AUTOLOADER: ✅ Načteno: $file<br>";
+        //echo "🔧 AUTOLOADER: ✅ Načteno: $file<br>";
     } else {
         echo "🔧 AUTOLOADER: ❌ Soubor nenalezen: $file<br>";
     }
 });
 
-echo "🔧 AUTOLOADER: Registrován<br>";
+//echo "🔧 AUTOLOADER: Registrován<br>";

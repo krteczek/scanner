@@ -28,8 +28,8 @@ namespace Scanner\Templates;
         <?php endif; ?>
 
         <div class="export-buttons">
-            <a href="?export=1" class="btn" style="background:#27ae60">📥 Exportovat pravidla (JSON)</a>
-            <a href="./../../index.php" class="btn">← Zpět na Scanner</a>
+            <a href="?action=rules&export=1" class="btn" style="background:#27ae60">📥 Exportovat pravidla (JSON)</a>
+            <a href="./index.php" class="btn">← Zpět na Scanner</a>
         </div>
 
         <!-- Import sekce -->

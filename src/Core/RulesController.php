@@ -24,7 +24,7 @@ class RulesController
     public function __construct()
     {
         $this->logger = Logger::getInstance();
-        $this->logger->info('RulesController initialized');
+        //$this->logger->info('RulesController initialized');
     }
 
     /**
@@ -68,10 +68,11 @@ class RulesController
         $this->logger->debug('Loading rules view template');
 
         // Načtení template
-        include __DIR__ . '/templates/rules_view.php';
+		include __DIR__ . '/../templates/rules_view.php';
+        //include __DIR__ . '/templates/rules_view.php';
     }
 }
 
 // Spuštění controlleru
-$controller = new RulesController();
-$controller->run();
+//$controller = new RulesController();
+//$controller->run();

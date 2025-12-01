@@ -38,7 +38,7 @@ class ExportService
     {
         $this->config = $config;
         $this->logger = Logger::getInstance();
-        $this->logger->info('ExportService initialized');
+        //$this->logger->info('ExportService initialized');
     }
 
     /**

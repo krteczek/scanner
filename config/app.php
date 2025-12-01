@@ -57,10 +57,12 @@ return [
     'ignore_patterns' => [
         'vendor/',
         'node_modules/',
-        '.git/',
+        '.git',
         'logs/',
         'tmp/',
         '~',
+		'.gitignore',
+		'.gitattributes',
     ],
 
     'output' => [
