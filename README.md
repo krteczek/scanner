@@ -11,7 +11,6 @@ Jednoduchý lokální nástroj pro skenování a analýzu PHP/JS projektů s mo�
 
 ## 📁 Struktura projektu
 
-```markdown
 # 📁 Scanner - Lokální analyzátor webových projektů
 
 Jednoduchý lokální nástroj pro skenování a analýzu PHP/JS projektů s možností zobrazení kódu a reportování problémů.
