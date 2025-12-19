@@ -24,7 +24,7 @@ Jednoduchý lokální nástroj pro skenování a analýzu PHP/JS projektů s mo�
 
 ## 📁 Struktura projektu
 
-```
+```markdown
 
 scanner/
 ├──index.php              # Hlavní vstupní bod
