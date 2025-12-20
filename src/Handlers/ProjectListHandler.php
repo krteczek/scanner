@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Scanner\Handlers;
 
 use Scanner\Utilities\FileHelper;
+use Scanner\Utilities\Config;
 
 class ProjectListHandler implements HandlerInterface
 {
@@ -19,22 +20,21 @@ class ProjectListHandler implements HandlerInterface
      */
     public function handle(array $params = []): string
     {
-        // 1. Příprava dat
-        $baseDir = realpath(__DIR__ . '/../../../') ?: '';
+     $projectsDir = Config::getProjectsDir();
+     $scannerRoot = Config::getScannerRoot();
+       // 1. Příprava dat
+        $baseDir = realpath(__DIR__ . '/../../') ?: '';
         $projectsDir = dirname($baseDir);
         
         $projectNames = FileHelper::getDirectories($projectsDir);
         $projects = [];
         
         foreach ($projectNames as $name) {
-            // Přeskočíme aktuální složku scanneru
-            if ($name !== basename($baseDir)) {
-                $projects[] = [
+               $projects[] = [
                     'name' => $name,
                     'path' => $projectsDir . '/' . $name,
                     'scan_url' => '?action=scan&project=' . urlencode($name)
                 ];
-            }
         }
         
         // 2. Renderování HTML

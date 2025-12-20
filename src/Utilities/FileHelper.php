@@ -53,6 +53,39 @@ class FileHelper
         return true;
     }
 
+/**
+     * Vrátí seznam podadresářů v daném adresáři
+     * 
+     * @param string $directory Cesta k adresáři
+     * @return array<string> Seznam názvů podadresářů
+     */
+    public static function getDirectories(string $directory): array
+    {
+        if (!is_dir($directory) || !is_readable($directory)) {
+            return [];
+        }
+        
+        $items = scandir($directory);
+        if ($items === false) {
+            return [];
+        }
+        
+        $directories = [];
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            
+            $fullPath = $directory . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($fullPath)) {
+                $directories[] = $item;
+            }
+        }
+        
+        sort($directories);
+        return $directories;
+    }
+    
     /**
      * Získá informace o souboru pro zobrazení
      *

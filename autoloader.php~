@@ -1,32 +1,33 @@
 <?php
-// /scanner/autoloader.php
-
+// autoloader.php v KOŘENI scanneru
 declare(strict_types=1);
 
-// ✅ 1. NEJDŘÍV NAČÍST LOGGER SYSTÉM Z KRS3
-require_once __DIR__ . '/../krs3/app/Logger/Logger.php';
-require_once __DIR__ . '/../krs3/app/Logger/AdvancedLogger.php';
-
-// ✅ 2. AUTOLOADER PRO SCANNER TŘÍDY
-spl_autoload_register(function ($className) {
-    $prefix = 'Scanner\\';
-    $baseDir = __DIR__ . '/src/';
-
-    $len = strlen($prefix);
-    if (strncmp($prefix, $className, $len) !== 0) {
-        //echo "🔧 AUTOLOADER: Přeskočeno - nesedí prefix '$prefix'<br>";
-        return;
+spl_autoload_register(function (string $className): void {
+    // Mapování namespace na adresář
+    $namespaceMap = [
+        'Scanner\\' => __DIR__ . '/src/',
+    ];
+    
+    foreach ($namespaceMap as $prefix => $baseDir) {
+        // Kontrola zda třída patří do tohoto namespace
+        $len = strlen($prefix);
+        if (strncmp($prefix, $className, $len) !== 0) {
+            continue;
+        }
+        
+        // Získání relativní cesty třídy
+        $relativeClass = substr($className, $len);
+        
+        // Nahrazení namespace separátoru za adresářový separátor
+        $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+        
+        // Načtení souboru pokud existuje
+        if (file_exists($file)) {
+            require $file;
+            return;
+        }
     }
-
-    $relativeClass = substr($className, $len);
-    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
-
-    if (file_exists($file)) {
-        require_once $file;
-        echo "🔧 AUTOLOADER: ✅ Načteno: $file<br>";
-    } else {
-        echo "🔧 AUTOLOADER: ❌ Soubor nenalezen: $file<br>";
-    }
+    
+    // Debug informace (pouze v dev módu)
+    error_log("[AUTOLOADER] Třída '$className' nebyla nalezena.");
 });
-
-echo "🔧 AUTOLOADER: Registrován<br>";

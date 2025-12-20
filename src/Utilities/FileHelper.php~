@@ -1,13 +1,14 @@
 <?php
 // scanner/src/Utilities/FileHelper.php
+
 /**
- * Pomocné utility pro práci se soubory
+ * Pomocné utility pro práci se soubory a adresáři
+ * Poskytuje metody pro kontrolu přístupnosti, relativní cesty a informací o souborech
  *
  * @package Scanner\Utilities
- * @author KRS3
+ * @author Petr
  * @version 2.0
  */
-
 declare(strict_types=1);
 
 namespace Scanner\Utilities;
