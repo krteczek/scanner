@@ -17,12 +17,12 @@ return [
         'environment' => 'development'
     ],
 
-    'paths' => [
-        'projects_root' => dirname(__DIR__, 2), // htdocs/
-        'scanner_root' => __DIR__ . '/../',
-        'templates' => __DIR__ . '/../templates/',
-        'public' => __DIR__ . '/../public/'
-    ],
+	'paths' => [
+	    'projects_root' => dirname(__DIR__, 2),     // /opt/lampp/htdocs
+	    'scanner_root' => dirname(__DIR__, 1),         // /opt/lampp/htdocs/scanner
+	    'templates' => dirname(__DIR__, 1) . '/templates/',  // /opt/lampp/htdocs/scanner/templates
+	    'public' => dirname(__DIR__, 1) . '/public/',        // /opt/lampp/htdocs/scanner/public
+	],
 
     'system' => [
         // Fallback cesty pro PHP (použije se pouze pokud auto-detekce selže)

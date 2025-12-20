@@ -10,20 +10,9 @@ use Scanner\Utilities\Config;
 
 class ProjectScanHandler implements HandlerInterface
 {
-    public function handle(array $params = []): string
+     public function handle(array $params = []): string
     {
- 
-    $projectName = $params['project'] ?? null;
-    $projectsDir = Config::getProjectsDir();
-    $scannerRoot = Config::getScannerRoot();
-    $projectPath = $projectsDir . '/' . $projectName;
-
-   $config = Config::load();
-    $config['rules'] = require $scannerRoot . '/config/rules.php';
-    
-    $scanner = new ScannerEngine($config);
-    $scanResult = $scanner->scanProject($projectPath);
-       // 1. Validace vstupu
+        // 1. Validace vstupu
         $projectName = $params['project'] ?? null;
         
         if (!$projectName) {
@@ -34,18 +23,9 @@ class ProjectScanHandler implements HandlerInterface
             ]);
         }
         
-        // 2. Příprava cest
-        $scannerRoot = realpath(__DIR__ . '/../../..');
-        
-        if (!$scannerRoot) {
-            $errorHandler = new ErrorHandler();
-            return $errorHandler->handle([
-                'error' => 'Chyba cest',
-                'message' => 'Nelze najít kořenový adresář scanneru.'
-            ]);
-        }
-        
-        $projectsDir = dirname($scannerRoot);
+        // 2. Příprava cest - OPRAVENO S Config
+        $scannerRoot = Config::getScannerRoot();          // ← OPRAVA
+        $projectsDir = Config::getProjectsDir();          // ← OPRAVA
         $projectPath = $projectsDir . '/' . $projectName;
         
         // 3. Kontrola existence projektu
@@ -59,17 +39,13 @@ class ProjectScanHandler implements HandlerInterface
         
         // 4. Spuštění skenování
         try {
-            // Načti konfiguraci
-            $config = require $scannerRoot . '/config/app.php';
+            $config = Config::load();                     // ← OPRAVA
             $config['rules'] = require $scannerRoot . '/config/rules.php';
             
-            // Vytvoř ScannerEngine
             $scanner = new ScannerEngine($config);
-            
-            // Spusť skenování
             $scanResult = $scanner->scanProject($projectPath);
             
-            // Renderování výsledků
+            // 5. Renderování výsledků
             return $this->renderReport($projectName, $projectPath, $scanResult);
             
         } catch (\Exception $e) {
@@ -80,8 +56,7 @@ class ProjectScanHandler implements HandlerInterface
                 'details' => 'Kontrolujte konfiguraci a práva k souborům.'
             ]);
         }
-    }
-    
+    }    
     /**
      * Vykreslí report skenování
      */
