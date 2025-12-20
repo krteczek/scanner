@@ -1,6 +1,4 @@
 <?php
-// scanner/src/Core/ScannerEngine.php
-
 declare(strict_types=1);
 
 namespace Scanner\Core;
@@ -10,231 +8,222 @@ use Scanner\Services\CodeAnalyzer;
 use Scanner\Services\ExportService;
 
 /**
- * Hlavní engine scanneru s hover okny
- *
- * @package Scanner\Core
- * @author KRS3
- * @version 2.1
+ * ScannerEngine - hlavní třída pro skenování projektů
+ * ČISTÁ implementace bez magie, vrací přesně to co potřebujeme
  */
-
 class ScannerEngine
 {
     private array $config;
     private ProjectScanner $projectScanner;
     private CodeAnalyzer $codeAnalyzer;
     private ExportService $exportService;
-
-    /**
-     * Constructor
-     *
-     * @param array $config Konfigurace aplikace
-     */
+    
     public function __construct(array $config)
     {
         $this->config = $config;
-        $this->projectScanner = new ProjectScanner($this->config);
-        $this->codeAnalyzer = new CodeAnalyzer($this->config);
-        $this->exportService = new ExportService($this->config);
-
-    }
-
-    /**
-     * Spustí hlavní aplikaci scanneru
-     *
-     * @return void
-     */
-    public function run(): void
-    {
-        if (isset($_GET['scan'])) {
-            $this->handleScanRequest($this->projectScanner, $_GET['scan']);
-        } else {
-            $this->showMainInterface($this->projectScanner);
-        }
-    }
-
-    /**
-     * Zobrazí hlavní rozhraní s výpisem projektů
-     *
-     * @param ProjectScanner $projectScanner Instance projektového scanneru
-     * @return void
-     */
-    private function showMainInterface(ProjectScanner $projectScanner): void
-    {
-        $projects = $projectScanner->getProjects();
-
-        echo "<!DOCTYPE html><html><head><title>Project Scanner</title>";
-        echo "<link rel='stylesheet' href='public/style.css'>";
-        echo $this->getJavaScript();
-        echo "</head><body>";
-
-        echo "<div class='container'>";
-        echo "<h1>🔍 Project Scanner</h1>";
-
-        echo "<div style='text-align: center; margin: 20px 0;'>";
-        echo "<a href='src/Core/RulesManager.php' style='background: #9b59b6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>";
-        echo "⚙️ Spravovat AI Pravidla";
-        echo "</a>";
-        echo "</div>";
-
-        if (empty($projects)) {
-            echo "<p>❌ Žádné projekty nenalezeny v: " . $this->config['paths']['projects_root'] . "</p>";
-        } else {
-            echo "<div class='project-list'>";
-            foreach ($projects as $project) {
-                echo "<div class='project' onclick=\"showStructure('$project')\">📂 $project</div>";
-            }
-            echo "</div>";
-        }
-
-        echo "<div id='results'></div>";
-        echo "</div></body></html>";
-    }
-
-
-/**
- * Zpracuje požadavek na skenování projektu s hover okny
- *
- * @param ProjectScanner $projectScanner Instance projektového scanneru
- * @param string $projectName Název projektu
- * @return void
- */
-private function handleScanRequest(ProjectScanner $projectScanner, string $projectName): void
-{
-    $projectPath = $this->config['paths']['projects_root'] . '/' . $projectName;
-
-    if (!is_dir($projectPath)) {
-        echo "❌ Projekt '$projectName' neexistuje!";
-        return;
-    }
-
-    // Získáme strukturu s metadaty
-    $structure = $projectScanner->scanProjectWithMetadata($projectPath);
-    $importantFilesCheck = $projectScanner->checkImportantFiles($projectPath);
-
-    // Načteme AI pravidla
-    $aiRules = @include __DIR__ . '/../../config/rules.php';
-    if (!$aiRules) {
-        $aiRules = [];
-    }
-
-    // Generujeme export   
-    $textExport = $this->exportService->generateTextExport(
-        $projectName, 
-        array_column($structure, 'display'), 
-        $importantFilesCheck, 
-        $projectPath, 
-        $aiRules
-    );
-
-    // Výstup výsledků S TITLE ATRIBUTY
-    echo "<div class='scan-results'>";
-    echo "<h3>📁 Struktura projektu: <strong>$projectName</strong></h3>";
-
-    // Tlačítko pro export
-    echo "<div class='export-section'>";
-    echo "<button onclick='showExport()' style='background:#27ae60;margin:10px 0'>📋 Zobrazit export</button>";
-    echo "</div>";
-
-    // Textarea pro export
-    echo "<div id='exportArea' style='display:none; margin:15px 0'>";
-    echo "<textarea id='exportText' style='width:100%; height:300px; font-family:monospace; background:#2c3e50; color:white; padding:10px; border-radius:5px;' readonly>";
-    echo htmlspecialchars($textExport);
-    echo "</textarea><br>";
-    echo "<button onclick='copyExport()' style='background:#e67e22; margin-top:5px'>📋 Kopírovat do schránky</button>";
-    echo "</div>";
-
-    // ZOBRAZENÍ STRUKTURY S TITLE ATRIBUTY
-    echo "<div class='structure-with-hover'>";
-    foreach ($structure as $item) {
-        $this->renderFileItemWithHover($item);
-    }
-    echo "</div>";
-
-    // Kontrola důležitých souborů
-    echo "<div class='important-files'>";
-    echo "<h4>🎯 Kontrola důležitých souborů:</h4>";
-    foreach ($importantFilesCheck as $file => $exists) {
-        $status = $exists ? '✅' : '❌';
-        echo "<div>$status $file</div>";
-    }
-    echo "</div>";
-
-    echo "<br><button onclick='history.back()'>← Zpět</button>";
-    echo "</div>";
-}
-    /**
-     * Vykreslí položku souboru nebo adresáře s hover okenem
-     *
-     * @param array $item Položka struktury s metadaty
-     * @return void
-     */
-private function renderFileItemWithHover(array $item): void
-{
-    $display = htmlspecialchars($item['display']);
-    $metadata = $item['metadata'];
-    
-    // Vytvořit text pro title atribut
-    $titleText = "";
-    if ($metadata['type'] === 'directory') {
-        $titleText = "📁 {$metadata['name']}\n• Typ: Adresář\n• Cesta: {$metadata['path']}\n• Upraveno: {$metadata['modified']}";
-    } else {
-        $titleText = "📄 {$metadata['name']}\n• Velikost: {$metadata['size']}\n• Řádků: {$metadata['lines']}\n• Upraveno: {$metadata['modified']}\n• Typ: " . ($metadata['has_php'] ? 'PHP soubor' : $metadata['extension']) . "\n• Cesta: {$metadata['path']}";
+        $this->projectScanner = new ProjectScanner($config);
+        $this->codeAnalyzer = new CodeAnalyzer($config['rules'] ?? []);
+        $this->exportService = new ExportService($config);
     }
     
-    // Použít title atribut místo tooltip divu
-    echo "<div class='file-item {$metadata['type']}' title='" . htmlspecialchars($titleText) . "'>";
-    echo $display;
-    echo "</div>";
-}    /**
-     * Vrátí JavaScript kód pro aplikaci
-     *
-     * @return string JavaScript kód
+    /**
+     * Skenuje projekt a vrací kompletní analýzu
+     * 
+     * @return array [
+     *   'structure' => array, // adresářová struktura
+     *   'analysis' => array,  // výsledky analýzy kódu
+     *   'stats' => array      // statistiky
+     * ]
      */
-    private function getJavaScript(): string
+    public function scanProject(string $projectPath): array
     {
-        return "
-        <script>
-        function showStructure(project) {
-            fetch('?scan=' + encodeURIComponent(project))
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('results').innerHTML = data;
-            });
+        // 1. Načti strukturu projektu
+        $structure = $this->getProjectStructure($projectPath);
+        
+        // 2. Analyzuj soubory
+        $analysis = $this->analyzeProjectFiles($projectPath, $structure['files'] ?? []);
+        
+        // 3. Vytvoř statistiky
+        $stats = $this->createStats($structure, $analysis);
+        
+        return [
+            'structure' => $structure,
+            'analysis' => $analysis,
+            'stats' => $stats,
+            'project_path' => $projectPath,
+            'scan_time' => date('Y-m-d H:i:s')
+        ];
+    }
+    
+    /**
+     * Získá strukturu projektu (soubory a složky)
+     */
+    public function getProjectStructure(string $projectPath): array
+    {
+        // Použij ProjectScanner
+        if (method_exists($this->projectScanner, 'getFileTree')) {
+            return $this->projectScanner->getFileTree($projectPath);
         }
-
-        function showExport() {
-            const exportArea = document.getElementById('exportArea');
-            if (!exportArea) return;
-
-            if (exportArea.style.display === 'none' || !exportArea.style.display) {
-                exportArea.style.display = 'block';
-            } else {
-                exportArea.style.display = 'none';
-            }
+        
+        if (method_exists($this->projectScanner, 'scanProject')) {
+            $result = $this->projectScanner->scanProject($projectPath);
+            return is_array($result) ? ['tree' => $result] : ['tree' => []];
         }
-
-        function copyExport() {
-            const textarea = document.getElementById('exportText');
-            if (!textarea) {
-                alert('❌ Textarea nenalezena');
-                return;
+        
+        // Fallback: ruční skenování
+        //return $this->scanDirectoryManually($projectPath);
+        return $this->projectScanner->scan($projectPath);
+    }
+    
+    /**
+     * Analyzuje soubory projektu podle pravidel
+     */
+    public function analyzeProjectFiles(string $projectPath, array $files): array
+    {
+        $issues = [];
+        
+        foreach ($files as $file) {
+            if (empty($file['path'])) continue;
+            
+            $fullPath = $projectPath . '/' . $file['path'];
+            $fileIssues = $this->codeAnalyzer->analyzeFile($fullPath);
+            
+            foreach ($fileIssues as &$issue) {
+                $issue['file'] = $file['path'];
+                $issue['file_name'] = basename($file['path']);
             }
-
-            textarea.select();
-            textarea.setSelectionRange(0, 99999);
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    alert('✅ Export zkopírován do schránky!');
-                } else {
-                    alert('❌ Kopírování selhalo');
+            
+            $issues = array_merge($issues, $fileIssues);
+        }
+        
+        return [
+            'issues' => $issues,
+            'total_issues' => count($issues),
+            'files_analyzed' => count($files)
+        ];
+    }
+    
+    /**
+     * Vrátí strukturu pro zobrazení (kompatibilní se starým systémem)
+     */
+    public function getDisplayStructure(string $projectPath): array
+    {
+        $structure = $this->getProjectStructure($projectPath);
+        $displayItems = [];
+        
+        // Převod na display formát
+        if (!empty($structure['tree'])) {
+            foreach ($structure['tree'] as $item) {
+                if (is_array($item) && isset($item['display'])) {
+                    $displayItems[] = $item;
+                } elseif (is_string($item)) {
+                    $displayItems[] = ['display' => $item];
                 }
-            } catch (err) {
-                alert('❌ Chyba při kopírování: ' + err);
             }
         }
-        </script>
-        ";
+        
+        return $displayItems;
+    }
+    
+    /**
+     * Ruční skenování adresáře (fallback)
+     */
+    private function scanDirectoryManually(string $path, string $prefix = ''): array
+    {
+        $result = ['files' => [], 'directories' => [], 'tree' => []];
+        
+        if (!is_dir($path) || !is_readable($path)) {
+            return $result;
+        }
+        
+        $items = scandir($path);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+            
+            $fullPath = $path . '/' . $item;
+            $relativePath = ($prefix ? $prefix . '/' : '') . $item;
+            
+            if (is_dir($fullPath)) {
+                $result['directories'][] = [
+                    'path' => $relativePath,
+                    'name' => $item
+                ];
+                
+                $result['tree'][] = ['display' => '📁 ' . $relativePath . '/'];
+                
+                // Rekurze
+                $subResult = $this->scanDirectoryManually($fullPath, $relativePath);
+                $result['files'] = array_merge($result['files'], $subResult['files']);
+                $result['directories'] = array_merge($result['directories'], $subResult['directories']);
+                $result['tree'] = array_merge($result['tree'], $subResult['tree']);
+                
+            } else {
+                $result['files'][] = [
+                    'path' => $relativePath,
+                    'name' => $item,
+                    'size' => filesize($fullPath),
+                    'extension' => pathinfo($item, PATHINFO_EXTENSION)
+                ];
+                
+                $result['tree'][] = ['display' => '📄 ' . $relativePath];
+            }
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Vytvoří statistiky
+     */
+    private function createStats(array $structure, array $analysis): array
+    {
+        return [
+            'total_files' => count($structure['files'] ?? []),
+            'total_dirs' => count($structure['directories'] ?? []),
+            'issues_found' => $analysis['total_issues'] ?? 0,
+            'files_analyzed' => $analysis['files_analyzed'] ?? 0,
+            'scan_timestamp' => time()
+        ];
+    }
+    
+    /**
+     * Kompatibilní metoda pro starý kód
+     */
+    public function showStructure(string $projectName): array
+    {
+        $projectPath = dirname($this->getScannerRoot()) . '/' . $projectName;
+        return $this->getDisplayStructure($projectPath);
+    }
+    
+    /**
+     * Kompatibilní metoda run()
+     */
+    public function run(array $params = []): array
+    {
+        $action = $params['action'] ?? 'scan';
+        $project = $params['project'] ?? '';
+        
+        switch ($action) {
+            case 'scan':
+            case 'structure':
+                $projectPath = dirname($this->getScannerRoot()) . '/' . $project;
+                return $this->scanProject($projectPath);
+                
+            case 'analyze':
+                $projectPath = dirname($this->getScannerRoot()) . '/' . $project;
+                $structure = $this->getProjectStructure($projectPath);
+                return $this->analyzeProjectFiles($projectPath, $structure['files'] ?? []);
+                
+            default:
+                return ['error' => 'Neplatná akce: ' . $action];
+        }
+    }
+    
+    /**
+     * Pomocná metoda pro získání cesty k scanneru
+     */
+    private function getScannerRoot(): string
+    {
+        return $this->config['paths']['scanner_root'] ?? dirname(__DIR__, 2);
     }
 }
-?>

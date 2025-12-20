@@ -54,17 +54,35 @@ return [
 
     'file_patterns' => ['*.php', '.htaccess', '*.md', '*.sql'],
 
-    'ignore_patterns' => [
-        'vendor/',
-        'node_modules/',
-        '.git',
-        'logs/',
-        'tmp/',
-        '~',
-		'.gitignore',
-		'.gitattributes',
-    ],
-
+'ignore_patterns' => [
+    // Adresáře (s lomítkem na konci)
+    'vendor/',
+    'node_modules/',
+    '.git',        // ← PŘIDAT LOMÍTKO!
+    'logs/',
+    'tmp/',
+    '__pycache__/',
+    '.idea/',
+    '.vscode/',
+    
+    // Soubory (přesné názvy)
+    '.gitignore',
+    '.gitattributes',
+    'composer.lock',
+    'package-lock.json',
+    '.env',
+    
+    // Glob patterns
+    '*.log',
+    '*.bak',
+    '*.tmp',
+    '*.swp',
+    '*.~',          // backup files (file.php~)
+    
+    // Speciální
+    '~',            // files ending with ~
+    '#',            // emacs backup
+],
     'output' => [
         'format' => 'text_tree',
         'include_important_files_check' => true

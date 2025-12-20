@@ -57,7 +57,7 @@ class Config
      */
     public static function getProjectsDir(): string
     {
-        return self::get('paths.projects_root') ?: dirname(self::getScannerRoot());
+         return self::get('paths.projects_root') ?: dirname(self::getScannerRoot());
     }
     
     /**
