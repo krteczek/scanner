@@ -9,6 +9,7 @@
 declare(strict_types=1);
 
 namespace Scanner\Handlers;
+use Scanner\Utilities\Config;
 
 class FileViewHandler implements HandlerInterface
 {
@@ -30,8 +31,8 @@ class FileViewHandler implements HandlerInterface
         }
         
         // 2. Sestavení absolutní cesty
-        $baseDir = realpath(__DIR__ . '/../../../') ?: '';
-        $projectsDir = dirname($baseDir);
+        $baseDir = Config::getScannerRoot();
+        $projectsDir = Config::getProjectsDir();
         $absolutePath = $projectsDir . '/' . $projectName . '/' . $filePath;
         
         // 3. Kontrola existence souboru

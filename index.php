@@ -13,10 +13,10 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-echo "<h3>DEBUG MODE</h3>";
-echo "REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? 'null') . "<br>";
-echo "GET params: " . print_r($_GET, true) . "<br>";
-flush(); // Vynutí výstup
+//echo "<h3>DEBUG MODE</h3>";
+//echo "REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? 'null') . "<br>";
+//echo "GET params: " . print_r($_GET, true) . "<br>";
+//flush(); // Vynutí výstup
 
 // 1. Načtení autoloaderu
 require_once __DIR__ . '/autoloader.php';
