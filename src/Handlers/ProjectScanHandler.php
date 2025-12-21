@@ -8,68 +8,73 @@ use Scanner\Core\ScannerEngine;
 
 class ProjectScanHandler implements HandlerInterface
 {
-    public function handle(array $params = []): string
-    {
-        // 1. Validace vstupu
-        $projectName = $params['project'] ?? null;
-        
-        if (!$projectName) {
-            return $this->error('Chybějící parametr projektu', 
-                'Pro skenování musíte zadat název projektu: ?action=scan&project=nazev');
-        }
-        
-        // 2. Příprava cest
-        $scannerRoot = Config::getScannerRoot();
-        $projectsDir = Config::getProjectsDir();
-        $projectPath = $projectsDir . '/' . $projectName;
-        
-        // 3. Kontrola existence projektu
-        clearstatcache(true, $projectPath);
-        if (!is_dir($projectPath) || !is_readable($projectPath)) {
-            return $this->error('Projekt nenalezen nebo nepřístupný',
-                "Nelze přistoupit k projektu '$projectName' v: " . htmlspecialchars($projectPath));
-        }
-        
-        // 4. Spuštění skenování
-        try {
-            // Načti konfiguraci
-            $config = Config::load();
-            $config['rules'] = require $scannerRoot . '/config/rules.php';
-            
-            // Vytvoř ScannerEngine (NOVÁ VERZE)
-            $scanner = new ScannerEngine($config);
-            
-            // MOŽNOST 1: Kompletní analýza projektu
-            $scanResult = $scanner->scanProject($projectPath);
-            // Vrací: ['structure', 'analysis', 'stats', 'project_path', 'scan_time']
-            
-            // MOŽNOST 2: Pouze struktura pro zobrazení (kompatibilní)
-            // $displayStructure = $scanner->getDisplayStructure($projectPath);
-            
-            // 5. Renderování výsledků
-            return $this->renderReport($projectName, $projectPath, $scanResult);
-            
-        } catch (\Exception $e) {
-            return $this->error('Chyba při skenování', $e->getMessage());
-        }
+public function handle(array $params = []): string
+{
+    // 1. Validace vstupu
+    $projectName = $params['project'] ?? null;
+    
+    if (!$projectName) {
+        return $this->error('Chybějící parametr projektu', 
+            'Pro skenování musíte zadat název projektu: ?action=scan&project=nazev');
     }
     
+    // 2. Příprava cest
+    $scannerRoot = Config::getScannerRoot();
+    $projectsDir = Config::getProjectsDir();
+    $projectPath = $projectsDir . '/' . $projectName;
+    
+    // 3. Kontrola existence projektu
+    clearstatcache(true, $projectPath);
+    if (!is_dir($projectPath) || !is_readable($projectPath)) {
+        return $this->error('Projekt nenalezen nebo nepřístupný',
+            "Nelze přistoupit k projektu '$projectName' v: " . htmlspecialchars($projectPath));
+    }
+    
+    // 4. Spuštění skenování
+    try {
+        // Načti konfiguraci
+        //$config = Config::load();
+        //$config['rules'] = require $scannerRoot . '/config/code_rules.php';
+// Před vytvořením ScannerEngine:
+$config = Config::load();
+$config['rules'] = require $scannerRoot . '/config/code_rules.php';
+
+// DEBUG
+error_log("=== CONFIG CHECK in ProjectScanHandler ===");
+error_log("Has 'ignore_patterns' key: " . (isset($config['ignore_patterns']) ? 'YES' : 'NO'));
+error_log("ignore_patterns count: " . (isset($config['ignore_patterns']) ? count($config['ignore_patterns']) : '0'));
+error_log("First 3 patterns: " . json_encode(array_slice($config['ignore_patterns'] ?? [], 0, 3)));        
+        // Vytvoř ScannerEngine (NOVÁ VERZE)
+        $scanner = new ScannerEngine($config);
+        
+        // Kompletní analýza projektu
+        $scanResult = $scanner->scanProject($projectPath);
+        
+        // 5. Renderování výsledků
+        return $this->renderReport($projectName, $projectPath, $scanResult);
+        
+    } catch (\Exception $e) {
+        return $this->error('Chyba při skenování', $e->getMessage());
+    }
+}    
     /**
      * Vykreslí report skenování
      */
     private function renderReport(string $projectName, string $projectPath, array $scanResult): string
     {
-        // Extrahuj data z výsledku
-        $structure = $scanResult['structure'] ?? [];
-        $analysis = $scanResult['analysis'] ?? ['issues' => [], 'total_issues' => 0];
-        $stats = $scanResult['stats'] ?? [];
-        $displayItems = $structure['tree'] ?? [];
-        
-        $issues = $analysis['issues'] ?? [];
-        $totalIssues = $analysis['total_issues'] ?? 0;
-        $totalFiles = $stats['total_files'] ?? 0;
-        $totalDirs = $stats['total_dirs'] ?? 0;
-        
+    	// Extrahuj data z výsledku
+    $structure = $scanResult['structure'] ?? [];
+    $analysis = $scanResult['analysis'] ?? ['issues' => [], 'total_issues' => 0];
+    $stats = $scanResult['stats'] ?? [];
+    
+    // displayItems je tree ze struktury
+    $displayItems = $structure['tree'] ?? [];
+    
+    $issues = $analysis['issues'] ?? [];
+    $totalIssues = $analysis['total_issues'] ?? 0;
+    $totalFiles = $stats['total_files'] ?? 0;
+    $totalDirs = $stats['total_dirs'] ?? 0;
+            
         ob_start();
         ?>
         <!DOCTYPE html>

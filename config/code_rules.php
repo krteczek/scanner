@@ -32,5 +32,23 @@ return [
         'message' => 'Chybí declare(strict_types=1)',
         'severity' => 'warning',
         'extensions' => ['php']
-    ]
+    ],
+'security_issues' => [
+    'pattern' => '/\b(eval|exec|system|shell_exec|passthru)\s*\(/i',
+    'message' => 'Potenciálně nebezpečná funkce',
+    'severity' => 'critical',
+    'extensions' => ['php']
+],
+'xss_vulnerability' => [
+    'pattern' => '/echo\s+\$_[GET|POST|REQUEST]/',
+    'message' => 'Možná XSS zranitelnost',
+    'severity' => 'critical',
+    'extensions' => ['php']
+],
+'password_in_code' => [
+    'pattern' => '/password\s*=\s*["\'][^"\']{4,}["\']/i',
+    'message' => 'Heslo v kódu - přesunout do .env',
+    'severity' => 'critical',
+    'extensions' => ['php', 'js', 'py']
+]
 ];

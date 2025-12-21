@@ -9,23 +9,29 @@ class ProjectScanner
     
 public function __construct(array $config)
 {
-	echo "<div style='background:#e0f7fa;padding:5px;margin:2px;'>";
-echo "📢 ProjectScanner::" . __FUNCTION__ . "() called";
-echo "</div>";
     $this->config = $config;
     
-    error_log("=== PROJECTSCANNER CONSTRUCTOR ===");
-    error_log("Config received, keys: " . implode(', ', array_keys($config)));
-    
-    // Speciálně zkontroluj ignore_patterns
+    // DEBUG - co dostáváme?
+    error_log("=== ProjectScanner constructor ===");
+    error_log("Config keys: " . implode(', ', array_keys($config)));
+    error_log("Has ignore_patterns: " . (isset($config['ignore_patterns']) ? 'YES' : 'NO'));
     if (isset($config['ignore_patterns'])) {
-        error_log("ignore_patterns FOUND, count: " . count($config['ignore_patterns']));
-        error_log("First few: " . implode(', ', array_slice($config['ignore_patterns'], 0, 5)));
-    } else {
-        error_log("NO ignore_patterns in config!");
+        error_log("Count: " . count($config['ignore_patterns']));
+        error_log("All: " . implode(', ', $config['ignore_patterns']));
+    }
+    
+    // Pokud ignore_patterns neexistují, vytvoř defaultní
+    if (!isset($config['ignore_patterns'])) {
+        error_log("WARNING: No ignore_patterns found, using defaults");
+        $this->config['ignore_patterns'] = [
+            'vendor/',
+            'node_modules/',
+            '.git/',
+            'logs/',
+            'tmp/'
+        ];
     }
 }
-
 
     /**
      * Scanuje projekt a vrací strukturu s metadaty
@@ -33,10 +39,6 @@ echo "</div>";
      */
     public function scan(string $projectPath): array
     {
-echo "<div style='background:#e0f7fa;padding:5px;margin:2px;'>";
-echo "📢 ProjectScanner::" . __FUNCTION__ . "() called";
-echo "</div>"; 
- 
         $result = [
             'files' => [],
             'directories' => [],
@@ -51,11 +53,6 @@ echo "</div>";
     private function scanDirectory(string $path, array &$result, string $relativePath): void
     {
     	
-    	echo "<div style='background:#e0f7fa;padding:5px;margin:2px;'>";
-echo "📢 ProjectScanner::" . __FUNCTION__ . "() called";
-echo "</div>";
-
-
         if (!is_dir($path) || !is_readable($path)) {
             return;
         }
@@ -102,55 +99,186 @@ if ($this->shouldIgnore($itemRelativePath)) {
             }
         }
     }
+    
+    
 private function shouldIgnore(string $path): bool
 {    
-echo "<div style='background:#e0f7fa;padding:5px;margin:2px;'>";
-echo "📢 ProjectScanner::" . __FUNCTION__ . "() called";
-echo "</div>";
-    // DEBUG 1: Co dostáváme?
-    error_log("=== SHOULD_IGNORE CALLED ===");
-    error_log("Path to check: '$path'");
-    error_log("Config ignore_patterns exists: " . 
-             (isset($this->config['ignore_patterns']) ? 'YES' : 'NO'));
-    
     $ignorePatterns = $this->config['ignore_patterns'] ?? [];
-    print_r($ignorePatterns); echo "kooook";
-    error_log("Ignore patterns count: " . count($ignorePatterns));
-    error_log("Ignore patterns: " . implode(', ', $ignorePatterns));
     
-    foreach ($ignorePatterns as $index => $pattern) {
-        error_log("  Checking pattern $index: '$pattern' against '$path'");
-        
+    // DEBUG
+    error_log("Checking: '$path' against " . count($ignorePatterns) . " patterns");
+    
+    foreach ($ignorePatterns as $pattern) {
         // 1. Přesná shoda
         if ($path === $pattern) {
-            error_log("    ✅ EXACT MATCH: $path == $pattern");
+            error_log("  ✅ Exact match: '$pattern'");
             return true;
         }
         
-        // 2. Adresář (končí /)
+        // 2. Adresář pattern (končí /)
         if (substr($pattern, -1) === '/') {
-            // Kontrola: "vendor/" matchne "vendor/" i "vendor/composer"
-            if (strpos($path . '/', $pattern) === 0) {
-                error_log("    ✅ DIRECTORY MATCH: $path starts with $pattern");
+            // Pattern "vendor/" matchne "vendor/" i "vendor/composer"
+            if ($pattern === $path . '/' || strpos($path . '/', $pattern) === 0) {
+                error_log("  ✅ Directory match: '$pattern' matches '$path'");
                 return true;
             }
         }
         
-        // 3. Soubor končící na ~
+        // 3. Glob patterns (obsahuje *)
+        if (strpos($pattern, '*') !== false) {
+            if ($this->matchesGlob($path, $pattern)) {
+                error_log("  ✅ Glob match: '$pattern' matches '$path'");
+                return true;
+            }
+        }
+        
+        // 4. Soubor končící na ~ (speciální pattern '~')
         if ($pattern === '~' && substr($path, -1) === '~') {
-            error_log("    ✅ BACKUP FILE MATCH: $path ends with ~");
+            error_log("  ✅ Backup file match: '$path' ends with ~");
             return true;
         }
         
-        // 4. Přesný název souboru
+        // 5. Soubor začínající # (speciální pattern '#')
+        if ($pattern === '#' && substr($path, 0, 1) === '#') {
+            error_log("  ✅ Emacs backup match: '$path' starts with #");
+            return true;
+        }
+        
+        // 6. Přesný název souboru (jen jméno, ne cesta)
         if (basename($path) === $pattern) {
-            error_log("    ✅ FILENAME MATCH: basename($path) == $pattern");
+            error_log("  ✅ Basename match: '$pattern' == basename('$path')");
             return true;
         }
-        
-        error_log("    ❌ NO MATCH for pattern '$pattern'");
     }
     
-    error_log("=== NO IGNORE PATTERN MATCHED ===");
+    error_log("  ❌ No match for '$path'");
     return false;
-}}
+}
+
+private function matchesGlob(string $path, string $pattern): bool
+{
+    $filename = basename($path);
+    
+    // Převod glob patternu na regex
+    $regex = str_replace(
+        ['\\*', '\\.', '\\?'],
+        ['.*', '\\.', '.'],
+        preg_quote($pattern, '/')
+    );
+    
+    $regex = '/^' . $regex . '$/i';
+    
+    return (bool) preg_match($regex, $filename);
+}
+
+
+    public function scanProject(string $path, string $prefix = ''): array
+    {
+        $structureWithMetadata = $this->scanProjectWithMetadata($path, $prefix);
+        return array_column($structureWithMetadata, 'display');
+    }
+    
+        /**
+     * Rekurzivně proskenuje projektový adresář a vrátí strukturu s metadaty
+     * Prochází všechny soubory a adresáře, aplikuje ignore pravidla
+     * Vrací kompletní strukturu s metadaty pro každou položku
+     *
+     * @param string $path Cesta k adresáři pro skenování
+     * @param string $prefix Prefix pro stromové zobrazení (pro rekurzi)
+     * @return array Stromová struktura projektu s metadaty
+     * @throws RuntimeException Pokud nelze načíst adresář
+     */
+    public function scanProjectWithMetadata(string $path, string $prefix = ''): array
+    {
+        $output = [];
+        $items = @scandir($path);
+
+        if ($items === false) {
+            throw new RuntimeException("Nelze načíst adresář: $path");
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $fullPath = $path . '/' . $item;
+
+            if ($this->shouldIgnore($fullPath)) continue;
+
+            $metadata = $this->getFileMetadata($fullPath);
+            
+            if (is_dir($fullPath)) {
+                $output[] = [
+                    'type' => 'directory',
+                    'display' => $prefix . '📁 ' . $item . '/',
+                    'metadata' => $metadata
+                ];
+                $output = array_merge($output, $this->scanProjectWithMetadata($fullPath, $prefix . '│   '));
+            } else {
+                $sizeInfo = $metadata['size_bytes'] > 0 ? ' (' . $metadata['size'] . ')' : '';
+                $output[] = [
+                    'type' => 'file', 
+                    'display' => $prefix . '📄 ' . $item . $sizeInfo,
+                    'metadata' => $metadata
+                ];
+            }
+        }
+        return $output;
+    }
+
+    /**
+     * Získá metadata o souboru nebo adresáři
+     * Shromažďuje informace o velikosti, času modifikace, počtu řádků a typech
+     * Pro PHP soubory navíc počítá řádky kódu
+     *
+     * @param string $filePath Cesta k souboru nebo adresáři
+     * @return array Metadata souboru obsahující name, path, size, lines, modified, type, extension, has_php
+     */
+    public function getFileMetadata(string $filePath): array
+    {
+        if (!file_exists($filePath)) {
+            return [];
+        }
+
+        $stats = stat($filePath);
+        $lines = 0;
+        
+        if (is_file($filePath) && pathinfo($filePath, PATHINFO_EXTENSION) === 'php') {
+            $lines = count(file($filePath));
+        }
+        
+        return [
+            'name' => basename($filePath),
+            'path' => $filePath,
+            'size' => $this->formatFileSize($stats['size']),
+            'size_bytes' => $stats['size'],
+            'lines' => $lines,
+            'modified' => date('Y-m-d H:i:s', $stats['mtime']),
+            'type' => is_dir($filePath) ? 'directory' : 'file',
+            'extension' => pathinfo($filePath, PATHINFO_EXTENSION),
+            'has_php' => (pathinfo($filePath, PATHINFO_EXTENSION) === 'php')
+        ];
+    }
+
+    /**
+     * Formátuje velikost souboru do čitelného formátu s jednotkami
+     * Automaticky vybírá vhodnou jednotku (B, KB, MB) podle velikosti
+     *
+     * @param int $bytes Velikost souboru v bytech
+     * @return string Naformátovaná velikost souboru s jednotkou
+     */
+    private function formatFileSize(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . 'MB';
+        } elseif ($bytes >= 1024) {
+            return round($bytes / 1024, 1) . 'KB';
+        } else {
+            return $bytes . 'B';
+        }
+    }
+
+
+
+
+
+
+}

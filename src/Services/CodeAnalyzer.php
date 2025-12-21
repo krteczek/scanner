@@ -10,6 +10,7 @@ class CodeAnalyzer
     public function __construct(array $rules)
     {
         $this->rules = $rules;
+			//echo "\nconstruct rules: ";print_r($this->rules);
     }
     
     /**
@@ -66,9 +67,10 @@ class CodeAnalyzer
         
         foreach ($this->rules as $ruleName => $rule) {
             if (!$this->ruleAppliesToExtension($rule, $extension)) {
+					//echo "\nneznámý nebo chybný patern rule, extension)): "; echo "\n rule: "; print_r($rule); echo "\n extension: ";print_r($extension);
                 continue;
             }
-            
+            //echo "\n\n\nTOTO: "; print_r($rule);print_r($extension);
             if (preg_match($rule['pattern'], $content, $matches, PREG_OFFSET_CAPTURE)) {
                 $line = $this->getLineNumber($content, $matches[0][1]);
                 $snippet = $this->getCodeSnippet($content, $matches[0][1]);

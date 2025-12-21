@@ -55,10 +55,10 @@ return [
     'file_patterns' => ['*.php', '.htaccess', '*.md', '*.sql'],
 
 'ignore_patterns' => [
-    // Adresáře (s lomítkem na konci)
+    // Adresáře (s lomítkem)
     'vendor/',
     'node_modules/',
-    '.git',        // ← PŘIDAT LOMÍTKO!
+    '.git/',
     'logs/',
     'tmp/',
     '__pycache__/',
@@ -71,19 +71,25 @@ return [
     'composer.lock',
     'package-lock.json',
     '.env',
+    '.env.local',
+    '.env.example',
     
     // Glob patterns
     '*.log',
     '*.bak',
     '*.tmp',
     '*.swp',
-    '*.~',          // backup files (file.php~)
+    '*.~',          // soubory končící na .~ (app.php~)
+    '*~',           // soubory končící na ~ (app~)
+    '#*#',          // emacs backup (#file#)
+    '*.zip',
+    '*.tar.gz',
+    '*_',
     
-    // Speciální
-    '~',            // files ending with ~
-    '#',            // emacs backup
-],
-    'output' => [
+    // Speciální symboly
+    '~',            // soubory s názvem "~" (velmi vzácné)
+    '#'             // soubory s názvem "#" (velmi vzácné)
+],    'output' => [
         'format' => 'text_tree',
         'include_important_files_check' => true
     ],
